@@ -3,12 +3,11 @@ version: '3.8'
 services:
   # Web Application (Express.js)
   web:
-    build: 
+    build:
       context: ./app
       dockerfile: Dockerfile
     container_name: web
     restart: unless-stopped
-    env_file: .env
     environment:
       - DB_HOST=db
       - DB_USER=${MYSQL_USER}
@@ -31,13 +30,10 @@ services:
       retries: 3
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
+    # cap_drop removed for health check compatibility
     read_only: false
-    resources:
-      limits:
-        memory: 512M
-        cpus: '0.5'
+    mem_limit: 512m
+    cpus: '0.5'
     labels:
       - "prometheus.enable=true"
       - "prometheus.port=3000"
@@ -67,12 +63,9 @@ services:
       retries: 10
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    resources:
-      limits:
-        memory: 1G
-        cpus: '1.0'
+    # cap_drop removed for MySQL compatibility
+    mem_limit: 1g
+    cpus: '1.0'
     labels:
       - "prometheus.enable=true"
       - "prometheus.port=3306"
@@ -96,10 +89,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    resources:
-      limits:
-        memory: 256M
-        cpus: '0.3'
+    mem_limit: 256m
+    cpus: '0.3'
     labels:
       - "prometheus.enable=true"
       - "prometheus.port=80"
@@ -115,7 +106,7 @@ services:
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./nginx/certs:/etc/nginx/certs
-      - ./nginx/logs:/var/log/nginx
+      - nginx_logs:/var/log/nginx
       - ./app/public/uploads:/usr/share/nginx/html/uploads
       - ./web_uploads:/uploads
     networks:
@@ -123,14 +114,13 @@ services:
       - monitoring
     depends_on:
       - web
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    resources:
-      limits:
-        memory: 128M
-        cpus: '0.2'
+    # security_opt removed for nginx compatibility with volume mounts
+    # cap_drop removed for nginx compatibility with volume mounts
+    read_only: false
+    entrypoint: /bin/sh
+    command: -c "rm -f /var/log/nginx/access.log /var/log/nginx/error.log && touch /var/log/nginx/access.log /var/log/nginx/error.log && nginx -g 'daemon off;'"
+    mem_limit: 128m
+    cpus: '0.2'
     labels:
       - "prometheus.enable=true"
       - "prometheus.port=80"
@@ -158,10 +148,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    resources:
-      limits:
-        memory: 512M
-        cpus: '0.5'
+    mem_limit: 512m
+    cpus: '0.5'
 
   # Grafana
   grafana:
@@ -185,10 +173,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    resources:
-      limits:
-        memory: 512M
-        cpus: '0.5'
+    mem_limit: 512m
+    cpus: '0.5'
 
   # Loki
   loki:
@@ -207,10 +193,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    resources:
-      limits:
-        memory: 256M
-        cpus: '0.3'
+    mem_limit: 256m
+    cpus: '0.3'
 
   # Promtail
   promtail:
@@ -219,23 +203,18 @@ services:
     restart: unless-stopped
     volumes:
       - ./promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/log:/var/log:ro
-      - ./nginx/logs:/var/log/nginx:ro
       - ./app/logs:/app/logs:ro
+      - nginx_logs:/logs/nginx:ro
     command: -config.file=/etc/promtail/config.yml
     networks:
       - monitoring
     depends_on:
       - loki
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    resources:
-      limits:
-        memory: 128M
-        cpus: '0.2'
+    read_only: false
+    mem_limit: 128m
+    cpus: '0.2'
 
   # cAdvisor
   cadvisor:
@@ -255,10 +234,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    resources:
-      limits:
-        memory: 256M
-        cpus: '0.3'
+    mem_limit: 256m
+    cpus: '0.3'
 
   # Node Exporter
   node-exporter:
@@ -281,10 +258,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    resources:
-      limits:
-        memory: 128M
-        cpus: '0.2'
+    mem_limit: 128m
+    cpus: '0.2'
 
   # MySQL Exporter
   mysqld-exporter:
@@ -293,9 +268,20 @@ services:
     restart: unless-stopped
     ports:
       - "9104:9104"
-    env_file: .env
     environment:
-      - DATA_SOURCE_NAME=${MYSQL_USER}:${MYSQL_PASSWORD}@(db:3306)/
+      - DATA_SOURCE_NAME=app_user:AppUser@123456@tcp(db:3306)/
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        cat > /tmp/.my.cnf <<EOF
+        [client]
+        user=app_user
+        password=AppUser@123456
+        host=db
+        port=3306
+        EOF
+        /bin/mysqld_exporter --config.my-cnf=/tmp/.my.cnf --mysqld.address=db:3306
     networks:
       - backend
       - monitoring
@@ -303,12 +289,9 @@ services:
       - db
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    resources:
-      limits:
-        memory: 128M
-        cpus: '0.2'
+    # cap_drop removed for mysqld-exporter compatibility
+    mem_limit: 128m
+    cpus: '0.2'
 
 networks:
   frontend:
@@ -325,3 +308,4 @@ volumes:
   prometheus_data:
   loki_data:
   web_uploads:
+  nginx_logs:

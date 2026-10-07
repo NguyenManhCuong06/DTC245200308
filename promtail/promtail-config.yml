@@ -26,50 +26,23 @@ scrape_configs:
           - localhost
         labels:
           job: nginx
-          agent: promtail
-    scrape_configs:
+          container: nginx
+          __path__: /logs/nginx/access.log
+
+  - job_name: nginx-error
+    static_configs:
       - targets:
           - localhost
         labels:
           job: nginx
-    static_configs:
-      - targets:
-          - nginx
-        labels:
           container: nginx
-          job: nginx
-    pipeline_stages:
-      - docker_metadata:
-          container: container_name
-      - json:
-          expressions:
-            time: timestamp
-            message: message
-          source: log
-      - timestamps:
-          source: time
-          format: RFC3339
+          __path__: /logs/nginx/error.log
 
   - job_name: app-logs
     static_configs:
       - targets:
-          - web
+          - localhost
         labels:
-          container: web
           job: app
-    pipeline_stages:
-      - docker_metadata:
-          container: container_name
-      - json:
-          expressions:
-            time: timestamp
-            level: level
-            message: message
-          source: log
-      - labels:
-          level: level
-      - output:
-          source: message
-      - timestamps:
-          source: time
-          format: RFC3339
+          container: web
+          __path__: /app/logs/*.log
