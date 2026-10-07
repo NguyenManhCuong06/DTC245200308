@@ -1,0 +1,327 @@
+version: '3.8'
+
+services:
+  # Web Application (Express.js)
+  web:
+    build: 
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: web
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DB_HOST=db
+      - DB_USER=${MYSQL_USER}
+      - DB_PASSWORD=${MYSQL_PASSWORD}
+      - DB_NAME=${MYSQL_DATABASE}
+      - NODE_ENV=production
+    networks:
+      - frontend
+      - backend
+      - monitoring
+    volumes:
+      - ./app/public/uploads:/app/public/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: false
+    resources:
+      limits:
+        memory: 512M
+        cpus: '0.5'
+    labels:
+      - "prometheus.enable=true"
+      - "prometheus.port=3000"
+
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    networks:
+      - backend
+      - monitoring
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/init-scripts:/docker-entrypoint-initdb.d
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    resources:
+      limits:
+        memory: 1G
+        cpus: '1.0'
+    labels:
+      - "prometheus.enable=true"
+      - "prometheus.port=3306"
+
+  # phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - PMA_HOST=db
+      - PMA_USER=${MYSQL_USER}
+      - PMA_PASSWORD=${MYSQL_PASSWORD}
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      - db
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    resources:
+      limits:
+        memory: 256M
+        cpus: '0.3'
+    labels:
+      - "prometheus.enable=true"
+      - "prometheus.port=80"
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/certs:/etc/nginx/certs
+      - ./nginx/logs:/var/log/nginx
+      - ./app/public/uploads:/usr/share/nginx/html/uploads
+      - ./web_uploads:/uploads
+    networks:
+      - frontend
+      - monitoring
+    depends_on:
+      - web
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    resources:
+      limits:
+        memory: 128M
+        cpus: '0.2'
+    labels:
+      - "prometheus.enable=true"
+      - "prometheus.port=80"
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.size=1GB'
+      - '--web.enable-lifecycle'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    resources:
+      limits:
+        memory: 512M
+        cpus: '0.5'
+
+  # Grafana
+  grafana:
+    image: grafana/grafana-enterprise:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+      - loki
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    resources:
+      limits:
+        memory: 512M
+        cpus: '0.5'
+
+  # Loki
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - monitoring
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    resources:
+      limits:
+        memory: 256M
+        cpus: '0.3'
+
+  # Promtail
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    restart: unless-stopped
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+      - ./nginx/logs:/var/log/nginx:ro
+      - ./app/logs:/app/logs:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - monitoring
+    depends_on:
+      - loki
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    resources:
+      limits:
+        memory: 128M
+        cpus: '0.2'
+
+  # cAdvisor
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - monitoring
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    resources:
+      limits:
+        memory: 256M
+        cpus: '0.3'
+
+  # Node Exporter
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+    networks:
+      - monitoring
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    resources:
+      limits:
+        memory: 128M
+        cpus: '0.2'
+
+  # MySQL Exporter
+  mysqld-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: mysqld-exporter
+    restart: unless-stopped
+    ports:
+      - "9104:9104"
+    env_file: .env
+    environment:
+      - DATA_SOURCE_NAME=${MYSQL_USER}:${MYSQL_PASSWORD}@(db:3306)/
+    networks:
+      - backend
+      - monitoring
+    depends_on:
+      - db
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    resources:
+      limits:
+        memory: 128M
+        cpus: '0.2'
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+  monitoring:
+    driver: bridge
+
+volumes:
+  db_data:
+  phpmyadmin_data:
+  grafana_data:
+  prometheus_data:
+  loki_data:
+  web_uploads:

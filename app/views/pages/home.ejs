@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Gallery</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/albums">Albums</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/photos">Photos</a></li>
+                </ul>
+                <ul class="navbar-nav">
+                    <% if (user) { %>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <%= user.username %>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="/logout">Logout</a></li>
+                            </ul>
+                        </li>
+                    <% } else { %>
+                        <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/register">Register</a></li>
+                    <% } %>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        <div class="jumbotron">
+            <h1 class="display-4">Welcome to Image Gallery</h1>
+            <p class="lead">A simple, secure image management system for uploading, categorizing, and sharing photos.</p>
+            <hr class="my-4">
+            <p>Store your memories in beautiful albums with full control over privacy and sharing.</p>
+            <% if (!user) { %>
+                <a class="btn btn-primary btn-lg" href="/register" role="button">Get Started</a>
+            <% } else { %>
+                <a class="btn btn-primary btn-lg" href="/albums" role="button">View My Albums</a>
+            <% } %>
+        </div>
+    </div>
+    <footer class="bg-dark text-center text-white py-3">
+        <div class="container">
+            <p class="mb-0">&copy; <%= new Date().getFullYear() %> Image Gallery.</p>
+        </div>
+    </footer>
+</body>
+</html>

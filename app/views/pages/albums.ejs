@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Gallery</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link active" href="/albums">Albums</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/photos">Photos</a></li>
+                </ul>
+                <ul class="navbar-nav">
+                    <% if (user) { %>
+                        <li class="nav-item"><a class="nav-link" href="/albums/create">Create Album</a></li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <%= user.username %>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="/logout">Logout</a></li>
+                            </ul>
+                        </li>
+                    <% } else { %>
+                        <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
+                    <% } %>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        <h1 class="mb-4">All Albums</h1>
+        
+        <% if (user) { %>
+            <div class="d-flex justify-content-between mb-3">
+                <a href="/albums/create" class="btn btn-primary">Create New Album</a>
+            </div>
+        <% } %>
+
+        <% if (albums && albums.length > 0) { %>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                <% albums.forEach(function(album) { { %>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title"><%= album.title %></h5>
+                                <p class="card-text text-muted">
+                                    <%= album.photo_count || 0 %> photos
+                                </p>
+                                <% if (album.description) { %>
+                                    <p class="card-text"><%= album.description.substring(0, 100) %>...</p>
+                                <% } %>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <a href="/albums/<%= album.id %>" class="btn btn-sm btn-outline-primary">View Album</a>
+                                <% if (album.user_id == user.id) { %>
+                                    <form action="/albums/<%= album.id %>/delete" method="POST" style="display:inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                    </form>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+                <% }); } %>
+        </div>
+        <% } else { %>
+            <div class="alert alert-info">No albums found. Be the first to create one!</div>
+        <% } %>
+    </div>
+    <footer class="bg-dark text-center text-white py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">&copy; <%= new Date().getFullYear() %> Image Gallery.</p>
+        </div>
+    </footer>
+</body>
+</html>

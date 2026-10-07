@@ -1,0 +1,45 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+rule_files:
+  - "alert_rules/*.yml"
+
+scrape_configs:
+  # Docker Daemon
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # Node Exporter (Host metrics)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # MySQL Exporter
+  - job_name: 'mysqld-exporter'
+    static_configs:
+      - targets: ['mysqld-exporter:9104']
+
+  # Web Application
+  - job_name: 'web-app'
+    static_configs:
+      - targets: ['web:3000']
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['prometheus:9090']
+
+  # Docker daemon metrics
+  - job_name: 'docker-daemon'
+    static_configs:
+      - targets: ['host.docker.internal:9323']
+    metrics_path: '/metrics'
+    scrape_interval: 5s

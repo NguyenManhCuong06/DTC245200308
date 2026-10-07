@@ -1,0 +1,71 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# SSL Certs (generate locally)
+nginx/certs/selfsigned.crt
+nginx/certs/selfsigned.key
+nginx/certs/*.pfx
+
+# Database
+*.sql
+*.dump
+*.bak
+
+# Prometheus data
+prometheus_data/
+grafana_data/
+loki_data/
+db_data/
+
+# Uploads (runtime generated)
+app/public/uploads/*
+!app/public/uploads/.gitkeep
+
+# Misc
+*.pid
+*.seed
+*.pid.lock

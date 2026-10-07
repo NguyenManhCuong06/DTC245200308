@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Image Gallery</title>
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Gallery</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/albums">Albums</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/photos">Photos</a></li>
+                </ul>
+                <ul class="navbar-nav">
+                    <% if (user) { %>
+                        <li class="nav-item"><a class="nav-link" href="/photos/upload">Upload</a></li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <%= user.username %>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="/logout">Logout</a></li>
+                            </ul>
+                        </li>
+                    <% } else { %>
+                        <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
+                    <% } %>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        <h1 class="mb-4">All Photos</h1>
+        
+        <% if (user) { %>
+            <div class="mb-3">
+                <a href="/photos/upload" class="btn btn-primary">Upload New Photo</a>
+            </div>
+        <% } %>
+
+        <% if (photos && photos.length > 0) { %>
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+                <% photos.forEach(function(photo) { { %>
+                    <div class="col">
+                        <div class="card h-100">
+                            <img src="<%= photo.path %>" class="card-img-top" alt="<%= photo.title %>">
+                            <div class="card-body">
+                                <h5 class="card-title"><%= photo.title %></h5>
+                                <p class="card-text text-muted small"><%= photo.album_title || 'Uncategorized' %></p>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <a href="/photos/<%= photo.id %>" class="btn btn-sm btn-outline-primary">View</a>
+                                <% if (photo.is_public) { %>
+                                    <a href="/photos/<%= photo.id %>/share" class="btn btn-sm btn-outline-success" target="_blank">Share</a>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+                <% }); } %>
+        </div>
+        <% } else { %>
+            <div class="alert alert-info">No photos found. Upload one to get started!</div>
+        <% } %>
+    </div>
+    <footer class="bg-dark text-center text-white py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">&copy; <%= new Date().getFullYear() %> Image Gallery.</p>
+        </div>
+    </footer>
+</body>
+</html>

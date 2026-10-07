@@ -1,0 +1,48 @@
+auth:
+  anonymous:
+    enabled: true
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: info
+
+common:
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store_config:
+        from: 2020-10-24
+        store: boltdb-shipper
+      object_store: filesystem
+      schema: v12
+      index:
+        prefix: index_
+        period: 24h
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+        http:
+
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: inmemory
+      final_sleep: 0s
+    chunk_target_size: 204800
+  chunk_idle_period: 5m
+  chunk_retain_period: 1h
+  max_transfer_retries: 0
+  max_transfer_retries_on_error: 2s
+  max_transfer_retries_wait: 15s

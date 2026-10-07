@@ -1,0 +1,75 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      - source_labels: [__meta_docker_container_name]
+        regex: "/(.*)"
+        target_label: container
+      - source_labels: [__meta_docker_container_name]
+        target_label: job
+
+  - job_name: nginx
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          agent: promtail
+    scrape_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+    static_configs:
+      - targets:
+          - nginx
+        labels:
+          container: nginx
+          job: nginx
+    pipeline_stages:
+      - docker_metadata:
+          container: container_name
+      - json:
+          expressions:
+            time: timestamp
+            message: message
+          source: log
+      - timestamps:
+          source: time
+          format: RFC3339
+
+  - job_name: app-logs
+    static_configs:
+      - targets:
+          - web
+        labels:
+          container: web
+          job: app
+    pipeline_stages:
+      - docker_metadata:
+          container: container_name
+      - json:
+          expressions:
+            time: timestamp
+            level: level
+            message: message
+          source: log
+      - labels:
+          level: level
+      - output:
+          source: message
+      - timestamps:
+          source: time
+          format: RFC3339

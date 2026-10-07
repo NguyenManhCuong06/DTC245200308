@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Image Gallery</title>
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Gallery</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/albums">Albums</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/photos">Photos</a></li>
+                </ul>
+                <ul class="navbar-nav">
+                    <% if (user) { %>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <%= user.username %>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="/logout">Logout</a></li>
+                            </ul>
+                        </li>
+                    <% } else { %>
+                        <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
+                    <% } %>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card">
+                    <img src="<%= photo.path %>" class="card-img-top" alt="<%= photo.title %>" style="max-height: 500px; object-fit: contain;">
+                    <div class="card-body">
+                        <h1 class="card-title"><%= photo.title %></h1>
+                        <p class="card-text"><%= photo.description || 'No description' %></p>
+                        <p class="text-muted">
+                            <small>Album: <%= photo.album_title || 'Uncategorized' %> | Uploaded by: <%= photo.username %> | <%= new Date(photo.created_at).toLocaleDateString() %></small>
+                        </p>
+                        <div class="d-flex gap-2">
+                            <a href="/photos" class="btn btn-secondary">Back to Photos</a>
+                            <% if (photo.is_public) { %>
+                                <button class="btn btn-success" onclick="copyShareLink()">Copy Share Link</button>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer class="bg-dark text-center text-white py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">&copy; <%= new Date().getFullYear() %> Image Gallery.</p>
+        </div>
+    </footer>
+    <script>
+        function copyShareLink() {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                alert('Share link copied to clipboard!');
+            });
+        }
+    </script>
+</body>
+</html>
