@@ -36,7 +36,7 @@ const photoController = {
 
     const file = req.files.photo;
     const fileName = `${Date.now()}-${file.name}`;
-    const uploadPath = path.join(__dirname, '../public/uploads', fileName);
+    const uploadPath = path.join(__dirname, '../../public/uploads', fileName);
     
     file.mv(uploadPath, (err) => {
       if (err) {
