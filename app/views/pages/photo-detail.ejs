@@ -55,7 +55,7 @@
                                 <% } %>
                             <% }); %>
                             <% if (user && photo.user_id == user.id) { %>
-                                <form action="/photos/<%= photo.id %>/tags" method="POST" class="d-flex gap-2 mt-2">
+                                <form action="/photos/<%= photo.id %>/tags" method="POST" class="d-flex flex-wrap gap-2 mt-2">
                                     <label for="tag-name" class="visually-hidden">Add a tag</label>
                                     <input id="tag-name" name="tag_name" class="form-control" maxlength="50" placeholder="Add tag" required>
                                     <button type="submit" class="btn btn-outline-primary">Add tag</button>
@@ -65,7 +65,7 @@
                         <p class="text-muted">
                             <small>Album: <%= photo.album_title || 'Uncategorized' %> | Uploaded by: <%= photo.username %> | <%= new Date(photo.created_at).toLocaleDateString() %></small>
                         </p>
-                        <div class="d-flex gap-2">
+                        <div class="d-flex flex-wrap gap-2">
                             <a href="/photos" class="btn btn-secondary">Back to Photos</a>
                             <% if (photo.is_public) { %>
                                 <button class="btn btn-success" onclick="copyShareLink()">Copy Share Link</button>

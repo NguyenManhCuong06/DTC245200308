@@ -48,9 +48,9 @@
                 <a href="/albums/create" class="btn btn-primary">Create New Album</a>
             </div>
         <% } %>
-        <form action="/albums" method="GET" class="mb-4 d-flex gap-2">
+        <form action="/albums" method="GET" class="mb-4 d-flex flex-wrap gap-2">
             <label for="album-search" class="visually-hidden">Search albums</label>
-            <input id="album-search" type="search" name="q" class="form-control" placeholder="Search album name or description" value="<%= searchTerm || '' %>">
+            <input id="album-search" type="search" name="q" class="form-control search-control" placeholder="Search album name or description" value="<%= searchTerm || '' %>">
             <button type="submit" class="btn btn-outline-primary">Search</button>
             <% if (searchTerm) { %><a href="/albums" class="btn btn-secondary">Clear</a><% } %>
         </form>
