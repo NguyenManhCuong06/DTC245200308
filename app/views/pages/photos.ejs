@@ -30,11 +30,13 @@
                     <% } else { %>
                         <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
                     <% } %>
-                    <form action="/photos" method="GET" class="mb-3 d-flex gap-2">
-                        <label for="tag-filter" class="visually-hidden">Filter by tag</label>
-                        <input id="tag-filter" type="search" name="tag" class="form-control" placeholder="Filter by tag" value="<%= activeTag || '' %>">
-                        <button type="submit" class="btn btn-outline-primary">Filter</button>
-                        <% if (activeTag) { %><a href="/photos" class="btn btn-secondary">Clear</a><% } %>
+                    <form action="/photos" method="GET" class="mb-3 d-flex flex-wrap gap-2">
+                        <label for="photo-search" class="visually-hidden">Search photos, tags or albums</label>
+                        <input id="photo-search" type="search" name="q" class="form-control" placeholder="Search photo, tag or album" value="<%= searchTerm || '' %>">
+                        <label for="tag-filter" class="visually-hidden">Filter by exact tag</label>
+                        <input id="tag-filter" type="search" name="tag" class="form-control" placeholder="Exact tag filter" value="<%= activeTag || '' %>">
+                        <button type="submit" class="btn btn-outline-primary">Search</button>
+                        <% if (activeTag || searchTerm) { %><a href="/photos" class="btn btn-secondary">Clear</a><% } %>
                     </form>
                     <% if (activeTag) { %><p class="text-muted">Tag: <strong><%= activeTag %></strong></p><% } %>
                 </ul>
@@ -93,7 +95,14 @@
                 <% }); %>
         </div>
         <% } else { %>
-            <div class="alert alert-info">No photos found. Upload one to get started!</div>
+            <div class="alert alert-info"><%= activeTag || searchTerm ? 'No photos match these filters.' : 'No photos found. Upload one to get started!' %></div>
+        <% } %>
+        <% if (totalPages > 1) { %>
+            <nav class="d-flex justify-content-between align-items-center my-4" aria-label="Photo pages">
+                <% if (previousUrl) { %><a class="btn btn-outline-primary" href="<%= previousUrl %>">Previous</a><% } else { %><span></span><% } %>
+                <span>Page <%= currentPage %> of <%= totalPages %> (<%= totalCount %> photos)</span>
+                <% if (nextUrl) { %><a class="btn btn-outline-primary" href="<%= nextUrl %>">Next</a><% } else { %><span></span><% } %>
+            </nav>
         <% } %>
     </div>
     <footer class="bg-dark text-center text-white py-3 mt-5">

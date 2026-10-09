@@ -26,3 +26,7 @@
 ### Thẻ ảnh
 - Chủ ảnh có thể gắn/bỏ gắn tag; danh sách ảnh hỗ trợ lọc theo tag.
 - Tag được chuẩn hóa và kiểm tra ký tự/độ dài trước khi ghi vào cơ sở dữ liệu.
+
+### Tìm kiếm và phân trang
+- Album có thể tìm theo tên/mô tả; ảnh có thể tìm theo tên ảnh, tên album hoặc tên tag.
+- Danh sách album và ảnh được phân trang; bộ lọc hiện tại được giữ trong liên kết chuyển trang.

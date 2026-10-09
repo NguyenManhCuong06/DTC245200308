@@ -55,6 +55,7 @@ const photoController = {
     const userId = req.user ? req.user.id : -1;
     const filters = ['((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ?)'];
     const params = [userId];
+    const searchTerm = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
     const tagFilter = typeof req.query.tag === 'string' ? req.query.tag.trim().slice(0, 50) : '';
     if (tagFilter) {
       filters.push(`EXISTS (
@@ -63,6 +64,23 @@ const photoController = {
       )`);
       params.push(tagFilter);
     }
+    if (searchTerm) {
+      filters.push(`(
+        p.title LIKE ?
+        OR a.title LIKE ?
+        OR EXISTS (
+          SELECT 1 FROM photo_tags pt JOIN tags t ON t.id = pt.tag_id
+          WHERE pt.photo_id = p.id AND t.name LIKE ?
+        )
+      )`);
+      params.push(`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`);
+    }
+    const where = filters.join(' AND ');
+    const perPage = 12;
+    const requestedPage = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const paginationQuery = new URLSearchParams();
+    if (searchTerm) paginationQuery.set('q', searchTerm);
+    if (tagFilter) paginationQuery.set('tag', tagFilter);
     const query = `
       SELECT p.*, u.username, a.title as album_title,
              (SELECT GROUP_CONCAT(t.name ORDER BY t.name SEPARATOR ',')
@@ -71,20 +89,40 @@ const photoController = {
       FROM photos p
       JOIN users u ON p.user_id = u.id
       LEFT JOIN albums a ON p.album_id = a.id
-      WHERE ${filters.join(' AND ')}
+      WHERE ${where}
       ORDER BY p.created_at DESC
+      LIMIT ? OFFSET ?
     `;
     
     try {
-      const [results] = await db.promise().query(query, params);
+      const [[{ totalCount }]] = await db.promise().query(
+        `SELECT COUNT(*) AS totalCount
+         FROM photos p LEFT JOIN albums a ON a.id = p.album_id
+         WHERE ${where}`,
+        params
+      );
+      const totalPages = Math.ceil(totalCount / perPage);
+      const page = Math.min(requestedPage, Math.max(totalPages, 1));
+      const offset = (page - 1) * perPage;
+      const [results] = await db.promise().query(query, [...params, perPage, offset]);
       results.forEach(photo => {
         photo.path = `/photos/${photo.id}/thumbnail`;
       });
-      res.render('pages/photos', { 
+      res.render('pages/photos', {
         title: 'Photos',
         photos: results,
         user: req.user,
+        searchTerm,
         activeTag: tagFilter,
+        currentPage: page,
+        totalPages,
+        totalCount,
+        previousUrl: page > 1
+          ? `/photos?${paginationQuery.toString()}${paginationQuery.size ? '&' : ''}page=${page - 1}`
+          : null,
+        nextUrl: page < totalPages
+          ? `/photos?${paginationQuery.toString()}${paginationQuery.size ? '&' : ''}page=${page + 1}`
+          : null,
         messages: { error: req.flash('error'), success: req.flash('success') }
       });
     } catch (error) {

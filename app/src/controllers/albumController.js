@@ -2,30 +2,61 @@ const db = require('../db');
 const notFound = (res) => res.status(404).render('pages/404', { title: 'Album not found' });
 
 const albumController = {
-  getAllAlbums: (req, res) => {
-    const query = `
-      SELECT a.*, u.username,
-             COUNT(CASE WHEN p.is_public = TRUE OR a.user_id = ? THEN p.id END) as photo_count
-      FROM albums a 
-      JOIN users u ON a.user_id = u.id 
-      LEFT JOIN photos p ON a.id = p.album_id 
-      WHERE a.is_public = TRUE OR a.user_id = ?
-      GROUP BY a.id 
-      ORDER BY a.created_at DESC
-    `;
-    
+  getAllAlbums: async (req, res) => {
     const userId = req.user ? req.user.id : -1;
-    db.query(query, [userId, userId], (err, results) => {
-      if (err) {
-        return res.status(500).send('Unable to load albums');
-      }
-      res.render('pages/albums', { 
+    const searchTerm = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
+    const filters = ['(a.is_public = TRUE OR a.user_id = ?)'];
+    const filterParams = [userId];
+    if (searchTerm) {
+      filters.push('(a.title LIKE ? OR a.description LIKE ?)');
+      filterParams.push(`%${searchTerm}%`, `%${searchTerm}%`);
+    }
+    const perPage = 4;
+    const requestedPage = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const where = filters.join(' AND ');
+    const paginationQuery = new URLSearchParams();
+    if (searchTerm) paginationQuery.set('q', searchTerm);
+
+    try {
+      const [[{ totalCount }]] = await db.promise().query(
+        `SELECT COUNT(*) AS totalCount FROM albums a WHERE ${where}`,
+        filterParams
+      );
+      const totalPages = Math.ceil(totalCount / perPage);
+      const page = Math.min(requestedPage, Math.max(totalPages, 1));
+      const offset = (page - 1) * perPage;
+      const [results] = await db.promise().query(
+        `SELECT a.*, u.username,
+                COUNT(CASE WHEN p.is_public = TRUE OR a.user_id = ? THEN p.id END) as photo_count
+         FROM albums a
+         JOIN users u ON a.user_id = u.id
+         LEFT JOIN photos p ON a.id = p.album_id
+         WHERE ${where}
+         GROUP BY a.id
+         ORDER BY a.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [userId, ...filterParams, perPage, offset]
+      );
+      res.render('pages/albums', {
         title: 'Albums',
         albums: results,
         user: req.user,
+        searchTerm,
+        currentPage: page,
+        totalPages,
+        totalCount,
+        previousUrl: page > 1
+          ? `/albums?${paginationQuery.toString()}${searchTerm ? '&' : ''}page=${page - 1}`
+          : null,
+        nextUrl: page < totalPages
+          ? `/albums?${paginationQuery.toString()}${searchTerm ? '&' : ''}page=${page + 1}`
+          : null,
         messages: { error: req.flash('error'), success: req.flash('success') }
       });
-    });
+    } catch (error) {
+      console.error('Unable to load albums:', error.message);
+      res.status(500).send('Unable to load albums');
+    }
   },
 
   renderCreateAlbum: (req, res) => {
