@@ -54,7 +54,7 @@
 
         <% if (photos && photos.length > 0) { %>
             <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 mt-4">
-                <% photos.forEach(function(photo) { { %>
+                <% photos.forEach(function(photo) { %>
                     <div class="col">
                         <div class="card h-100">
                             <img src="<%= photo.path %>" class="card-img-top" alt="<%= photo.title %>" style="height: 200px; object-fit: cover;">
@@ -69,7 +69,7 @@
                             </div>
                         </div>
                     </div>
-                <% }); } %>
+                <% }); %>
             </div>
         <% } else { %>
             <div class="alert alert-info mt-4">No photos in this album yet.</div>
