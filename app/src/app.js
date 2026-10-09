@@ -119,6 +119,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/css', express.static(path.join(__dirname, '../public/css')));
 app.use('/js', express.static(path.join(__dirname, '../public/js')));
+app.use('/vendor/bootstrap', express.static(path.join(__dirname, '../node_modules/bootstrap/dist')));
 app.use(fileUpload({
   createParentPath: true,
   limits: { fileSize: 10 * 1024 * 1024, files: 10 },
@@ -178,8 +179,17 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = err.status >= 400 && err.status < 600 ? err.status : 500;
   console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  if (req.accepts('html')) {
+    return res.status(status).render('pages/error', {
+      title: 'Request failed',
+      status,
+      message: status >= 500 ? 'The request could not be completed.' : err.message
+    });
+  }
+  res.status(status).json({ error: status >= 500 ? 'The request could not be completed.' : err.message });
 });
 
 startServer();

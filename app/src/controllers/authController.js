@@ -8,6 +8,7 @@ const authController = {
     res.render('pages/login', { 
       title: 'Login',
       error: req.flash('error'),
+      success: req.flash('success'),
       user: null
     });
   },
@@ -40,6 +41,7 @@ const authController = {
         }
         return res.redirect('/register');
       }
+      req.flash('success', 'Registration successful. Please log in.');
       res.redirect('/login');
     });
   },

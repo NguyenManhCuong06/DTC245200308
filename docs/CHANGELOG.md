@@ -35,3 +35,9 @@
 - Trang Admin liệt kê user, nội dung gần đây và thống kê số user/album/ảnh cùng dung lượng file thực trên đĩa.
 - Admin có thể khóa/mở user và xóa album (kèm ảnh) hoặc ảnh vi phạm; route kiểm tra role admin.
 - Tài khoản bị khóa không thể đăng nhập và phiên hiện tại không còn được xác thực cho request tiếp theo.
+
+### Giao diện
+- Bootstrap CSS/JS được phục vụ từ dependency cài trong ứng dụng tại `/vendor/bootstrap`; không phụ thuộc CDN.
+- Bổ sung menu thu gọn trên màn hình nhỏ, bố cục co giãn cho tìm kiếm/lightbox và trang lỗi có hướng dẫn quay lại thư viện.
+- Form upload hiển thị trạng thái chọn ảnh và đang tải lên; các trạng thái rỗng, cảnh báo, thành công và xác nhận thao tác được trình bày bằng component nội bộ.
+- Kiểm tra thật sau Docker build: `/`, `/albums`, `/photos`, `/login`, `/health` và hai asset Bootstrap đều trả HTTP 200 qua HTTPS.

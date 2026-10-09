@@ -4,19 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %> - Image Gallery</title>
-    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="/">Gallery</a>
-            <div class="collapse navbar-collapse">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item"><a class="nav-link" href="/albums">Albums</a></li>
                     <li class="nav-item"><a class="nav-link active" href="/photos">Photos</a></li>
                 </ul>
                 <ul class="navbar-nav">
+                    <% if (user && user.role === 'admin') { %><li class="nav-item"><a class="nav-link" href="/admin">Admin</a></li><% } %>
                     <% if (user) { %>
                         <li class="nav-item"><a class="nav-link" href="/photos/upload">Upload</a></li>
                         <li class="nav-item dropdown">
@@ -30,15 +34,6 @@
                     <% } else { %>
                         <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
                     <% } %>
-                    <form action="/photos" method="GET" class="mb-3 d-flex flex-wrap gap-2">
-                        <label for="photo-search" class="visually-hidden">Search photos, tags or albums</label>
-                        <input id="photo-search" type="search" name="q" class="form-control" placeholder="Search photo, tag or album" value="<%= searchTerm || '' %>">
-                        <label for="tag-filter" class="visually-hidden">Filter by exact tag</label>
-                        <input id="tag-filter" type="search" name="tag" class="form-control" placeholder="Exact tag filter" value="<%= activeTag || '' %>">
-                        <button type="submit" class="btn btn-outline-primary">Search</button>
-                        <% if (activeTag || searchTerm) { %><a href="/photos" class="btn btn-secondary">Clear</a><% } %>
-                    </form>
-                    <% if (activeTag) { %><p class="text-muted">Tag: <strong><%= activeTag %></strong></p><% } %>
                 </ul>
             </div>
         </div>
@@ -47,6 +42,15 @@
         <h1 class="mb-4">All Photos</h1>
         <% (messages?.error || []).forEach(function(message) { %><div class="alert alert-danger"><%= message %></div><% }); %>
         <% (messages?.success || []).forEach(function(message) { %><div class="alert alert-success"><%= message %></div><% }); %>
+        <form action="/photos" method="GET" class="mb-4 d-flex flex-wrap gap-2">
+            <label for="photo-search" class="visually-hidden">Search photos, tags or albums</label>
+            <input id="photo-search" type="search" name="q" class="form-control search-control" placeholder="Search photo, tag or album" value="<%= searchTerm || '' %>">
+            <label for="tag-filter" class="visually-hidden">Filter by exact tag</label>
+            <input id="tag-filter" type="search" name="tag" class="form-control search-control" placeholder="Exact tag filter" value="<%= activeTag || '' %>">
+            <button type="submit" class="btn btn-outline-primary">Search</button>
+            <% if (activeTag || searchTerm) { %><a href="/photos" class="btn btn-secondary">Clear</a><% } %>
+        </form>
+        <% if (activeTag) { %><p class="text-muted">Tag: <strong><%= activeTag %></strong></p><% } %>
         
         <% if (user) { %>
             <div class="mb-3">
@@ -85,11 +89,6 @@
                                     <a href="/photos/<%= photo.id %>/share" class="btn btn-sm btn-outline-success" target="_blank">Share</a>
                                 <% } %>
                             </div>
-                            <dialog id="photo-lightbox" class="photo-lightbox">
-                                <button type="button" class="btn btn-secondary lightbox-close" aria-label="Close">Close</button>
-                                <img alt="">
-                            </dialog>
-                            <script src="/js/gallery.js" defer></script>
                         </div>
                     </div>
                 <% }); %>
@@ -105,10 +104,16 @@
             </nav>
         <% } %>
     </div>
+    <dialog id="photo-lightbox" class="photo-lightbox">
+        <button type="button" class="btn btn-secondary lightbox-close" aria-label="Close">Close</button>
+        <img alt="">
+    </dialog>
     <footer class="bg-dark text-center text-white py-3 mt-5">
         <div class="container">
             <p class="mb-0">&copy; <%= new Date().getFullYear() %> Image Gallery.</p>
         </div>
     </footer>
+    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/gallery.js" defer></script>
 </body>
 </html>
