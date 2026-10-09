@@ -41,6 +41,7 @@
                         <h3 class="mb-0">Create New Album</h3>
                     </div>
                     <div class="card-body">
+                        <% (messages?.error || []).forEach(function(message) { %><div class="alert alert-danger"><%= message %></div><% }); %>
                         <form action="/albums" method="POST">
                             <div class="mb-3">
                                 <label class="form-label">Album Title *</label>

@@ -39,6 +39,10 @@
             <div>
                 <a href="/albums" class="btn btn-secondary">Back to Albums</a>
                 <% if (user && album.user_id == user.id) { %>
+                    <a href="/albums/<%= album.id %>/edit" class="btn btn-outline-secondary ms-2">Edit Album</a>
+                    <form action="/albums/<%= album.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Delete this album?');">
+                        <button type="submit" class="btn btn-outline-danger ms-2">Delete Album</button>
+                    </form>
                     <a href="/photos/upload?album_id=<%= album.id %>" class="btn btn-primary ms-2">Add Photos</a>
                 <% } %>
             </div>
