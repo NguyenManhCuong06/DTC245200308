@@ -18,6 +18,7 @@ if (missingEnvironment.length > 0) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+app.set('trust proxy', 1);
 
 // Ensure logs directory exists
 const logsDir = path.join(__dirname, 'logs');
