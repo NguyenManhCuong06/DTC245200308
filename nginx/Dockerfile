@@ -1,5 +1,6 @@
-FROM nginx:1.31.6-alpine
+FROM nginxinc/nginx-unprivileged:1.31.6-alpine
 
+USER root
 RUN apk add --no-cache curl openssl
 
 RUN mkdir -p /var/cache/nginx /var/run/nginx /etc/nginx/certs \

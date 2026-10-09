@@ -2,6 +2,7 @@ name: gallery
 
 services:
   web:
+    image: gallery-web:3.0.0
     build:
       context: ./app
       dockerfile: Dockerfile
@@ -12,6 +13,7 @@ services:
       DB_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
       DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
       DB_NAME: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
+      UPLOAD_DIR: /app/public/uploads
       DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-}
       DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-}
       NODE_ENV: production
@@ -49,6 +51,7 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_ROOT_HOST: localhost
       MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
       MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
@@ -60,7 +63,7 @@ services:
       - ./db/init-scripts:/docker-entrypoint-initdb.d:ro
     command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "--silent"]
+      test: ["CMD", "mysqladmin", "ping", "--protocol=tcp", "-h", "127.0.0.1", "--silent"]
       interval: 20s
       timeout: 5s
       retries: 10
@@ -97,6 +100,7 @@ services:
     cpus: "0.3"
 
   nginx:
+    image: gallery-nginx:1.31.6-alpine
     build:
       context: ./nginx
       dockerfile: Dockerfile
@@ -106,8 +110,6 @@ services:
       - "80:8080"
       - "443:8443"
     volumes:
-      - nginx_cache:/var/cache/nginx
-      - nginx_run:/var/run/nginx
       - nginx_certs:/etc/nginx/certs
     networks:
       - frontend
@@ -160,6 +162,9 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
     mem_limit: 512m
     cpus: "0.5"
 
@@ -179,7 +184,7 @@ services:
       prometheus:
         condition: service_healthy
       loki:
-        condition: service_started
+        condition: service_healthy
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
       GF_USERS_ALLOW_SIGN_UP: "false"
@@ -194,11 +199,18 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    tmpfs:
+      - /tmp
     mem_limit: 512m
     cpus: "0.5"
 
   loki:
-    image: grafana/loki:3.7.8
+    image: gallery-loki:3.7.8
+    build:
+      context: .
+      dockerfile: healthcheck/Dockerfile
+      args:
+        BASE_IMAGE: grafana/loki:3.7.8
     container_name: loki
     restart: unless-stopped
     ports:
@@ -214,13 +226,27 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/gallery-healthcheck", "http://127.0.0.1:3100/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     mem_limit: 256m
     cpus: "0.3"
 
   promtail:
-    image: grafana/promtail:3.6.8
+    image: gallery-promtail:3.6.8
+    build:
+      context: .
+      dockerfile: healthcheck/Dockerfile
+      args:
+        BASE_IMAGE: grafana/promtail:3.6.8
     container_name: promtail
     restart: unless-stopped
+    user: "0:0"
     volumes:
       - ./promtail/promtail-config.yml:/etc/promtail/config.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -232,11 +258,19 @@ services:
       - host-access
     depends_on:
       loki:
-        condition: service_started
+        condition: service_healthy
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/gallery-healthcheck", "http://127.0.0.1:9080/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     mem_limit: 128m
     cpus: "0.2"
 
@@ -260,6 +294,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    read_only: true
     mem_limit: 256m
     cpus: "0.3"
 
@@ -289,6 +324,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    read_only: true
     mem_limit: 128m
     cpus: "0.2"
 
@@ -325,11 +361,17 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    read_only: true
     mem_limit: 128m
     cpus: "0.2"
 
   nginx-prometheus-exporter:
-    image: nginx/nginx-prometheus-exporter:1.4.2
+    image: gallery-nginx-prometheus-exporter:1.4.2
+    build:
+      context: .
+      dockerfile: healthcheck/Dockerfile
+      args:
+        BASE_IMAGE: nginx/nginx-prometheus-exporter:1.4.2
     container_name: nginx-prometheus-exporter
     restart: unless-stopped
     command:
@@ -346,6 +388,12 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    read_only: true
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/gallery-healthcheck", "http://127.0.0.1:9113/metrics"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     mem_limit: 64m
     cpus: "0.1"
 
@@ -366,6 +414,4 @@ volumes:
   grafana_data:
   prometheus_data:
   loki_data:
-  nginx_cache:
-  nginx_run:
   nginx_certs:

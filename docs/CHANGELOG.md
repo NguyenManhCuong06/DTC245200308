@@ -1,5 +1,23 @@
 # Changelog
 
+## Giai đoạn 3
+
+### Loki và Promtail
+- Docker service discovery đọc JSON container logs từ Docker socket, gán nhãn container/service/stream và bao gồm access/error stdout/stderr của Nginx.
+- Đường dẫn container log được dựng từ Docker container ID; file JSON ứng dụng tại `/app/src/logs/*.log` được parse riêng để tránh chạy Docker pipeline lên JSON ứng dụng.
+- Thêm datasource UID ổn định và dashboard Grafana **Gallery Logs** với log containers, lọc lỗi/status 4xx/5xx và `count_over_time`.
+- Kiểm tra thật bằng Loki API sau clean rebuild, request đăng nhập, album, upload, link chia sẻ, 403 và 404: `{container="web"}` trả 1.000 dòng (giới hạn query), lọc Nginx 404 trả 4 dòng, regex Nginx `error|warn` trả 1 dòng, lọc application HTTP 4xx/5xx trả 104 dòng, và `sum(count_over_time({job="application"}[5m]))` trả giá trị 55.
+
+### Hardening runtime và Nginx
+- Chuyển Nginx sang image `nginxinc/nginx-unprivileged:1.31.6-alpine`, nội bộ 8080/8443; root filesystem read-only, tmpfs cho dữ liệu tạm, no-new-privileges và drop ALL capabilities.
+- Tách rate-limit cho `/login` và `/register`; kiểm tra request thật trả 429 sau burst. Thêm HTTP→HTTPS và xác minh response headers/HSTS/CSP cùng asset Bootstrap nội bộ; body lớn hơn giới hạn 105 MiB nhận 413.
+- Gắn health probe HTTP tĩnh cho Loki, Promtail và Nginx exporter (image upstream distroless, không có shell/curl). Khai báo MySQL root host là localhost, giới hạn published monitoring ports vào loopback, và thêm quyền/capability hardening cho Promtail.
+- Healthcheck MySQL xác nhận listener TCP loopback để Compose chỉ khởi động web khi DB nhận kết nối qua TCP; sau clean rebuild, `docker compose logs web` không có `ECONNREFUSED` khi startup.
+- Sau clean rebuild: Prometheus API báo 6/6 targets UP; Grafana datasource health của Loki và Prometheus đều `OK`, dashboard Gallery Logs có 3 panels; truy vấn Grafana datasource proxy trả dữ liệu cho container, Nginx và MySQL.
+- Cấp `UPLOAD_DIR=/app/public/uploads` cho seed chạy trong container; clean seed tạo 3 user, 5 album, 25 ảnh và 25 thumbnail cùng share link còn hiệu lực.
+- Grafana giữ root filesystem writable có chủ đích: read-only đã làm plugin updater không ghi được thư mục bundled plugins và khiến datasource health trả 404 `plugin.notRegistered`; các capability vẫn được drop và privilege escalation bị cấm.
+- Đã xác minh cấu hình và Docker runtime cho Docker Desktop data ở `D:\Docker\DockerDesktopWSL`; phần kiểm thử trạng thái services sau clean rebuild được ghi trong README.
+
 ## Giai đoạn 2
 
 ### Album
