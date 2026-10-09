@@ -1,6 +1,11 @@
 const bcrypt = require('bcryptjs');
 const mysql = require('mysql2/promise');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const sharp = require('sharp');
+
+const uploadDirectory = process.env.UPLOAD_DIR || path.resolve(__dirname, '../../app/public/uploads');
 
 const DB_CONFIG = {
   host: process.env.DB_HOST || 'db',
@@ -12,8 +17,9 @@ const DB_CONFIG = {
 };
 
 function resolveDemoPassword(environmentVariable) {
-  if (process.env[environmentVariable]) {
-    return process.env[environmentVariable];
+  const configuredPassword = process.env[environmentVariable];
+  if (configuredPassword && !configuredPassword.startsWith('replace_with_')) {
+    return configuredPassword;
   }
 
   const password = crypto.randomBytes(32).toString('base64url');
@@ -82,6 +88,55 @@ const SHARE_LINKS = [
   { albumIndex: 1, token: crypto.randomBytes(32).toString('hex'), expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }
 ];
 
+function demoArtwork(photo, index) {
+  const colors = [
+    ['#152a3a', '#6fb1a0', '#f6c66b'],
+    ['#20283f', '#c56c67', '#f2b36d'],
+    ['#173d4a', '#a6cbb7', '#f7d9aa'],
+    ['#302344', '#e27b55', '#f3bf76'],
+    ['#1b3540', '#63a6a1', '#e4d58f']
+  ][photo.albumIndex];
+  const shift = (index % 5) * 24;
+  let subject;
+
+  if (photo.albumIndex === 0) {
+    subject = `<circle cx="${610 - shift}" cy="130" r="58" fill="${colors[2]}"/>
+      <path d="M0 390L170 175 310 365 450 190 800 430V600H0Z" fill="${colors[1]}"/>
+      <path d="M0 475L240 300 430 475 590 315 800 465V600H0Z" fill="${colors[0]}"/>`;
+  } else if (photo.albumIndex === 1) {
+    subject = Array.from({ length: 7 }, (_, building) => {
+      const x = building * 120 - 15;
+      const height = 150 + ((building * 67 + index * 31) % 210);
+      const windows = Array.from({ length: 3 }, (_, row) => Array.from({ length: 2 }, (__, col) =>
+        `<rect x="${x + 18 + col * 38}" y="${490 - height + row * 44}" width="14" height="20" fill="${colors[2]}" opacity=".85"/>`
+      ).join('')).join('');
+      return `<rect x="${x}" y="${470 - height}" width="104" height="${height}" rx="4" fill="${building % 2 ? colors[1] : colors[0]}"/>${windows}`;
+    }).join('');
+  } else if (photo.albumIndex === 2) {
+    subject = `<path d="M220 600c8-154 76-226 180-226s172 72 180 226" fill="${colors[0]}"/>
+      <ellipse cx="400" cy="270" rx="118" ry="146" fill="${colors[2]}"/>
+      <path d="M280 250c-20-126 71-190 174-173 76 12 117 76 88 168-26-48-60-69-114-74-47 43-91 60-148 79Z" fill="${colors[1]}"/>
+      <circle cx="359" cy="276" r="8" fill="${colors[0]}"/><circle cx="443" cy="276" r="8" fill="${colors[0]}"/>
+      <path d="M372 333q28 20 56 0" fill="none" stroke="${colors[0]}" stroke-width="8" stroke-linecap="round"/>`;
+  } else if (photo.albumIndex === 3) {
+    subject = `<path d="M0 0h800v420H0Z" fill="url(#sky)"/>
+      <path d="M0 420h300v180H0zm322-118h156v298H322zm179-122h299v420H501Z" fill="${colors[0]}"/>
+      <path d="M300 600l82-300h36l82 300Z" fill="${colors[2]}" opacity=".85"/>
+      <path d="M0 443h296M488 443h312" stroke="${colors[1]}" stroke-width="18"/>`;
+  } else {
+    subject = `<circle cx="400" cy="300" r="218" fill="${colors[0]}"/>
+      <circle cx="400" cy="300" r="170" fill="${colors[1]}"/>
+      ${Array.from({ length: 8 }, (_, petal) => `<ellipse cx="400" cy="192" rx="43" ry="116" fill="${colors[2]}" transform="rotate(${petal * 45} 400 300)" opacity=".88"/>`).join('')}
+      <circle cx="400" cy="300" r="72" fill="${colors[0]}"/><circle cx="400" cy="300" r="38" fill="${colors[2]}"/>`;
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+    <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="${colors[0]}"/><stop offset="1" stop-color="${colors[1]}"/></linearGradient></defs>
+    <rect width="800" height="600" fill="url(#sky)"/>
+    ${subject}
+  </svg>`;
+}
+
 async function seedDatabase() {
   let connection;
   try {
@@ -136,11 +191,34 @@ async function seedDatabase() {
 
     // Insert photos and photo_tags
     console.log('Inserting demo photos...');
-    for (const photo of DEMO_PHOTOS) {
+    fs.mkdirSync(uploadDirectory, { recursive: true });
+    for (const [index, photo] of DEMO_PHOTOS.entries()) {
+      const filename = `demo-${String(index + 1).padStart(2, '0')}.jpg`;
+      const thumbnailFilename = `demo-${String(index + 1).padStart(2, '0')}-thumb.webp`;
+      const imagePath = path.join(uploadDirectory, filename);
+      const thumbnailPath = path.join(uploadDirectory, thumbnailFilename);
+      const artwork = Buffer.from(demoArtwork(photo, index));
+      await sharp(artwork).jpeg({ quality: 86 }).toFile(imagePath);
+      await sharp(artwork)
+        .resize({ width: 480, height: 360, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toFile(thumbnailPath);
+
       const albumId = albumIds[photo.albumIndex];
       const [result] = await connection.execute(
-        'INSERT INTO photos (title, description, filename, path, album_id, user_id, is_public) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [photo.title, photo.description, photo.filename, `/uploads/${photo.filename}`, albumId, userIds[DEMO_ALBUMS[photo.albumIndex].userIndex], true]
+        `INSERT INTO photos
+          (title, description, filename, path, thumbnail_path, album_id, user_id, is_public)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          photo.title,
+          `${photo.description}. Original generated demo illustration.`,
+          filename,
+          `/uploads/${filename}`,
+          `/uploads/${thumbnailFilename}`,
+          albumId,
+          userIds[DEMO_ALBUMS[photo.albumIndex].userIndex],
+          true
+        ]
       );
       const photoId = result.insertId;
       console.log(`  Created photo: ${photo.title} (ID: ${photoId})`);

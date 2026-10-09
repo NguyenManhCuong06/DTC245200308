@@ -41,3 +41,9 @@
 - Bổ sung menu thu gọn trên màn hình nhỏ, bố cục co giãn cho tìm kiếm/lightbox và trang lỗi có hướng dẫn quay lại thư viện.
 - Form upload hiển thị trạng thái chọn ảnh và đang tải lên; các trạng thái rỗng, cảnh báo, thành công và xác nhận thao tác được trình bày bằng component nội bộ.
 - Kiểm tra thật sau Docker build: `/`, `/albums`, `/photos`, `/login`, `/health` và hai asset Bootstrap đều trả HTTP 200 qua HTTPS.
+
+### Dữ liệu demo
+- Seed tạo 3 tài khoản, 5 album, 25 ảnh minh họa gốc được raster hóa thành JPEG và thumbnail WebP, tag và link chia sẻ có token ngẫu nhiên.
+- Ảnh minh họa được tạo trong seed, không lấy từ nguồn bên thứ ba; chúng không phải ảnh chụp. Mật khẩu demo lấy từ `.env`, nếu thiếu thì seed sinh và in mật khẩu ngẫu nhiên đúng một lần.
+- Seed chạy trong web container với quyền ghi vào thư mục upload dùng chung; nginx không còn mount thư mục upload để tránh khả năng phục vụ file tĩnh ngoài route kiểm tra quyền.
+- Kiểm tra sau `docker compose down -v` và `docker compose up -d --build`: seed tạo 3 user, 5 album, 25 ảnh và 25 thumbnail; share link cùng ảnh tải qua link trả HTTP 200, còn album private, ảnh private và URL trực tiếp `/uploads/...` trả HTTP 404.

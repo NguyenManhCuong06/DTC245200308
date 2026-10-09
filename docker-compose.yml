@@ -12,6 +12,8 @@ services:
       DB_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
       DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
       DB_NAME: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-}
       NODE_ENV: production
       SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
     networks:
@@ -21,6 +23,7 @@ services:
     volumes:
       - ./app/public/uploads:/app/public/uploads
       - ./app/src/logs:/app/src/logs
+      - ./db/init-scripts:/app/db/init-scripts:ro
     tmpfs:
       - /tmp
     depends_on:
@@ -106,7 +109,6 @@ services:
       - nginx_cache:/var/cache/nginx
       - nginx_run:/var/run/nginx
       - nginx_certs:/etc/nginx/certs
-      - ./app/public/uploads:/usr/share/nginx/html/uploads:ro
     networks:
       - frontend
       - monitoring
