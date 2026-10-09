@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Shared Gallery</title>
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <main class="container my-4">
+        <header class="mb-4">
+            <p class="text-muted">Read-only shared album by <%= album.username %></p>
+            <h1><%= album.title %></h1>
+            <% if (album.description) { %><p><%= album.description %></p><% } %>
+        </header>
+        <% if (photos.length) { %>
+            <div class="photo-grid">
+                <% photos.forEach(function(photo) { %>
+                    <button type="button" class="lightbox-trigger card" data-full="<%= photo.originalPath %>" aria-label="View <%= photo.title %>">
+                        <img src="<%= photo.thumbnailPath %>" alt="<%= photo.title %>" loading="lazy">
+                        <span class="card-body"><%= photo.title %></span>
+                    </button>
+                <% }); %>
+            </div>
+        <% } else { %>
+            <p class="alert alert-info">This album has no photos.</p>
+        <% } %>
+    </main>
+    <dialog id="photo-lightbox" class="photo-lightbox">
+        <button type="button" class="btn btn-secondary lightbox-close" aria-label="Close">Close</button>
+        <img alt="">
+    </dialog>
+    <script src="/js/gallery.js" defer></script>
+</body>
+</html>

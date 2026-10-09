@@ -56,6 +56,44 @@
 
         <p class="text-muted">Created by <%= album.username %> on <%= new Date(album.created_at).toLocaleDateString() %></p>
 
+        <% (messages?.error || []).forEach(function(message) { %><div class="alert alert-danger"><%= message %></div><% }); %>
+        <% (messages?.success || []).forEach(function(message) { %><div class="alert alert-success"><%= message %></div><% }); %>
+        <% if (user && album.user_id == user.id) { %>
+            <section class="card mb-4" aria-labelledby="share-links-title">
+                <div class="card-body">
+                    <h2 id="share-links-title" class="h5">Guest share links</h2>
+                    <form action="/albums/<%= album.id %>/shares" method="POST" class="d-flex flex-wrap align-items-end gap-2 mb-3">
+                        <label for="share-expiry" class="form-label mb-0">Expires in</label>
+                        <select id="share-expiry" name="expires_in_days" class="form-select w-auto">
+                            <option value="1">1 day</option>
+                            <option value="7" selected>7 days</option>
+                            <option value="30">30 days</option>
+                        </select>
+                        <button type="submit" class="btn btn-success">Create share link</button>
+                    </form>
+                    <% if (shareLinks && shareLinks.length) { %>
+                        <ul class="list-unstyled mb-0">
+                            <% shareLinks.forEach(function(link) { %>
+                                <li class="border-top py-2">
+                                    <% if (!link.revoked_at && new Date(link.expires_at) > new Date()) { %>
+                                        <a href="/share/<%= link.token %>" target="_blank" rel="noopener">Open guest link</a>
+                                        <span class="text-muted">Expires <%= new Date(link.expires_at).toLocaleString() %></span>
+                                        <form action="/albums/<%= album.id %>/shares/<%= link.id %>/revoke" method="POST" class="d-inline" onsubmit="return confirm('Revoke this share link?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
+                                        </form>
+                                    <% } else { %>
+                                        <span class="text-muted">Inactive share link</span>
+                                    <% } %>
+                                </li>
+                            <% }); %>
+                        </ul>
+                    <% } else { %>
+                        <p class="text-muted mb-0">No share links yet.</p>
+                    <% } %>
+                </div>
+            </section>
+        <% } %>
+
         <% if (photos && photos.length > 0) { %>
             <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 mt-4">
                 <% photos.forEach(function(photo) { %>

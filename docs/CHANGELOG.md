@@ -17,3 +17,8 @@
 - Album và ảnh riêng tư chỉ được xem bởi chủ sở hữu; API cũng lọc nội dung và không trả đường dẫn file lưu trữ.
 - Sửa/xóa được giới hạn theo chủ sở hữu; tải file chỉ qua route kiểm tra quyền, không qua đường dẫn tĩnh.
 - Thêm middleware xác thực và kiểm tra role admin để các route quản trị dùng chung.
+
+### Chia sẻ
+- Chủ album có thể tạo link khách chỉ đọc, chọn thời hạn 1, 7 hoặc 30 ngày và thu hồi link.
+- Link hết hạn trả HTTP 410; link bị thu hồi hoặc ảnh được gọi qua link đã thu hồi trả 404.
+- Ảnh album private được phục vụ cho khách chỉ qua media route gắn với link còn hiệu lực.

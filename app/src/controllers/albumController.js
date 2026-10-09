@@ -99,13 +99,27 @@ const albumController = {
           description: row.photo_desc
         }));
       
-      res.render('pages/album-detail', { 
-        title: album.title,
-        album,
-        photos,
-        user: req.user,
-        messages: { error: req.flash('error'), success: req.flash('success') }
-      });
+      const renderAlbum = (shareLinks = []) => {
+        res.render('pages/album-detail', {
+          title: album.title,
+          album,
+          photos,
+          shareLinks,
+          user: req.user,
+          messages: { error: req.flash('error'), success: req.flash('success') }
+        });
+      };
+      if (!req.user || album.user_id !== req.user.id) return renderAlbum();
+      db.query(
+        'SELECT id, token, expires_at, revoked_at FROM share_links WHERE album_id = ? ORDER BY created_at DESC',
+        [album.id],
+        (shareErr, shareLinks) => {
+          if (shareErr) {
+            return res.status(500).send('Unable to load album share links');
+          }
+          renderAlbum(shareLinks);
+        }
+      );
     });
   },
 

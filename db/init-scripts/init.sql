@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS share_links (
     album_id INT NOT NULL,
     token VARCHAR(100) UNIQUE NOT NULL,
     expires_at TIMESTAMP NOT NULL,
+    revoked_at TIMESTAMP NULL DEFAULT NULL,
     created_by INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE,
