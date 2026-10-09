@@ -52,17 +52,31 @@ async function removeStoredFiles(files) {
 
 const photoController = {
   getAllPhotos: async (req, res) => {
+    const userId = req.user ? req.user.id : -1;
+    const filters = ['((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ?)'];
+    const params = [userId];
+    const tagFilter = typeof req.query.tag === 'string' ? req.query.tag.trim().slice(0, 50) : '';
+    if (tagFilter) {
+      filters.push(`EXISTS (
+        SELECT 1 FROM photo_tags pt JOIN tags t ON t.id = pt.tag_id
+        WHERE pt.photo_id = p.id AND t.name = ?
+      )`);
+      params.push(tagFilter);
+    }
     const query = `
-      SELECT p.*, u.username, a.title as album_title
+      SELECT p.*, u.username, a.title as album_title,
+             (SELECT GROUP_CONCAT(t.name ORDER BY t.name SEPARATOR ',')
+              FROM photo_tags pt JOIN tags t ON t.id = pt.tag_id
+              WHERE pt.photo_id = p.id) AS tag_names
       FROM photos p
       JOIN users u ON p.user_id = u.id
       LEFT JOIN albums a ON p.album_id = a.id
-      WHERE (p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ?
+      WHERE ${filters.join(' AND ')}
       ORDER BY p.created_at DESC
     `;
     
     try {
-      const [results] = await db.promise().query(query, [req.user ? req.user.id : -1]);
+      const [results] = await db.promise().query(query, params);
       results.forEach(photo => {
         photo.path = `/photos/${photo.id}/thumbnail`;
       });
@@ -70,6 +84,7 @@ const photoController = {
         title: 'Photos',
         photos: results,
         user: req.user,
+        activeTag: tagFilter,
         messages: { error: req.flash('error'), success: req.flash('success') }
       });
     } catch (error) {
@@ -209,7 +224,10 @@ const photoController = {
 
   getPhotoById: async (req, res) => {
     const query = `
-      SELECT p.*, u.username, a.title as album_title
+      SELECT p.*, u.username, a.title as album_title,
+             (SELECT GROUP_CONCAT(t.name ORDER BY t.name SEPARATOR ',')
+              FROM photo_tags pt JOIN tags t ON t.id = pt.tag_id
+              WHERE pt.photo_id = p.id) AS tag_names
       FROM photos p
       JOIN users u ON p.user_id = u.id
       LEFT JOIN albums a ON p.album_id = a.id
@@ -220,6 +238,11 @@ const photoController = {
       const [results] = await db.promise().query(query, [req.params.id, req.user ? req.user.id : -1]);
       if (!results.length) return notFound(res);
       const photo = results[0];
+      const [tags] = await db.promise().query(
+        'SELECT t.id, t.name FROM tags t JOIN photo_tags pt ON pt.tag_id = t.id WHERE pt.photo_id = ? ORDER BY t.name',
+        [photo.id]
+      );
+      photo.tags = tags;
       photo.path = `/photos/${photo.id}/original`;
       photo.thumbnailPath = `/photos/${photo.id}/thumbnail`;
       res.render('pages/photo-detail', { 
@@ -271,6 +294,55 @@ const photoController = {
     } catch (error) {
       console.error('Unable to update photo:', error.message);
       res.status(500).send('Unable to update photo');
+    }
+  },
+
+  addTag: async (req, res) => {
+    if (!req.user) return res.redirect('/login');
+    const tagName = typeof req.body.tag_name === 'string'
+      ? req.body.tag_name.normalize('NFKC').trim().toLocaleLowerCase()
+      : '';
+    if (!tagName || tagName.length > 50 || !/^[\p{L}\p{N}_ -]+$/u.test(tagName)) {
+      req.flash('error', 'Tag names may contain letters, numbers, spaces, hyphens and underscores (maximum 50 characters)');
+      return res.redirect(`/photos/${req.params.id}`);
+    }
+    try {
+      const [photos] = await db.promise().query(
+        'SELECT id FROM photos WHERE id = ? AND user_id = ?',
+        [req.params.id, req.user.id]
+      );
+      if (!photos.length) return notFound(res);
+      const [tagResult] = await db.promise().query(
+        'INSERT INTO tags (name) VALUES (?) ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)',
+        [tagName]
+      );
+      await db.promise().query(
+        'INSERT IGNORE INTO photo_tags (photo_id, tag_id) VALUES (?, ?)',
+        [req.params.id, tagResult.insertId]
+      );
+      req.flash('success', 'Tag added');
+      res.redirect(`/photos/${req.params.id}`);
+    } catch (error) {
+      console.error('Unable to tag photo:', error.message);
+      res.status(500).send('Unable to add tag');
+    }
+  },
+
+  removeTag: async (req, res) => {
+    if (!req.user) return res.redirect('/login');
+    try {
+      const [result] = await db.promise().query(
+        `DELETE pt FROM photo_tags pt
+         JOIN photos p ON p.id = pt.photo_id
+         WHERE pt.photo_id = ? AND pt.tag_id = ? AND p.user_id = ?`,
+        [req.params.id, req.params.tagId, req.user.id]
+      );
+      if (!result.affectedRows) return notFound(res);
+      req.flash('success', 'Tag removed');
+      res.redirect(`/photos/${req.params.id}`);
+    } catch (error) {
+      console.error('Unable to remove photo tag:', error.message);
+      res.status(500).send('Unable to remove tag');
     }
   },
 

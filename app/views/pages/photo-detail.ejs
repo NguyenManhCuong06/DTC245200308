@@ -41,6 +41,23 @@
                     <div class="card-body">
                         <h1 class="card-title"><%= photo.title %></h1>
                         <p class="card-text"><%= photo.description || 'No description' %></p>
+                        <section class="my-3" aria-label="Photo tags">
+                            <% (photo.tags || []).forEach(function(tag) { %>
+                                <a href="/photos?tag=<%= encodeURIComponent(tag.name) %>" class="badge bg-secondary">#<%= tag.name %></a>
+                                <% if (user && photo.user_id == user.id) { %>
+                                    <form action="/photos/<%= photo.id %>/tags/<%= tag.id %>/remove" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Remove tag <%= tag.name %>">×</button>
+                                    </form>
+                                <% } %>
+                            <% }); %>
+                            <% if (user && photo.user_id == user.id) { %>
+                                <form action="/photos/<%= photo.id %>/tags" method="POST" class="d-flex gap-2 mt-2">
+                                    <label for="tag-name" class="visually-hidden">Add a tag</label>
+                                    <input id="tag-name" name="tag_name" class="form-control" maxlength="50" placeholder="Add tag" required>
+                                    <button type="submit" class="btn btn-outline-primary">Add tag</button>
+                                </form>
+                            <% } %>
+                        </section>
                         <p class="text-muted">
                             <small>Album: <%= photo.album_title || 'Uncategorized' %> | Uploaded by: <%= photo.username %> | <%= new Date(photo.created_at).toLocaleDateString() %></small>
                         </p>

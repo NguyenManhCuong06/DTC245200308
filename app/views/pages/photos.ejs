@@ -30,6 +30,13 @@
                     <% } else { %>
                         <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
                     <% } %>
+                    <form action="/photos" method="GET" class="mb-3 d-flex gap-2">
+                        <label for="tag-filter" class="visually-hidden">Filter by tag</label>
+                        <input id="tag-filter" type="search" name="tag" class="form-control" placeholder="Filter by tag" value="<%= activeTag || '' %>">
+                        <button type="submit" class="btn btn-outline-primary">Filter</button>
+                        <% if (activeTag) { %><a href="/photos" class="btn btn-secondary">Clear</a><% } %>
+                    </form>
+                    <% if (activeTag) { %><p class="text-muted">Tag: <strong><%= activeTag %></strong></p><% } %>
                 </ul>
             </div>
         </div>
@@ -56,6 +63,13 @@
                             <div class="card-body">
                                 <h5 class="card-title"><%= photo.title %></h5>
                                 <p class="card-text text-muted small"><%= photo.album_title || 'Uncategorized' %></p>
+                                <% if (photo.tag_names) { %>
+                                    <div class="photo-tags">
+                                        <% photo.tag_names.split(',').forEach(function(tag) { %>
+                                            <a href="/photos?tag=<%= encodeURIComponent(tag) %>" class="badge bg-secondary">#<%= tag %></a>
+                                        <% }); %>
+                                    </div>
+                                <% } %>
                             </div>
                             <div class="card-footer bg-transparent">
                                 <a href="/photos/<%= photo.id %>" class="btn btn-sm btn-outline-primary">View</a>

@@ -61,7 +61,10 @@ const albumController = {
 
   getAlbumById: (req, res) => {
     const query = `
-      SELECT a.*, u.username, p.id as photo_id, p.title as photo_title, p.filename, p.path, p.thumbnail_path, p.is_public as photo_is_public, p.description as photo_desc
+      SELECT a.*, u.username, p.id as photo_id, p.title as photo_title, p.filename, p.path, p.thumbnail_path, p.is_public as photo_is_public, p.description as photo_desc,
+             (SELECT GROUP_CONCAT(t.name ORDER BY t.name SEPARATOR ',')
+              FROM photo_tags pt JOIN tags t ON t.id = pt.tag_id
+              WHERE pt.photo_id = p.id) AS photo_tags
       FROM albums a
       JOIN users u ON a.user_id = u.id
       LEFT JOIN photos p ON a.id = p.album_id AND (p.is_public = TRUE OR a.user_id = ?)
@@ -96,7 +99,8 @@ const albumController = {
           path: `/photos/${row.photo_id}/thumbnail`,
           originalPath: `/photos/${row.photo_id}/original`,
           is_public: row.photo_is_public,
-          description: row.photo_desc
+          description: row.photo_desc,
+          tags: row.photo_tags ? row.photo_tags.split(',') : []
         }));
       
       const renderAlbum = (shareLinks = []) => {

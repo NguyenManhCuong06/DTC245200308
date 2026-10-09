@@ -104,6 +104,13 @@
                             </button>
                             <div class="card-body">
                                 <h5 class="card-title"><%= photo.title %></h5>
+                                <% if (photo.tags && photo.tags.length) { %>
+                                    <div class="photo-tags">
+                                        <% photo.tags.forEach(function(tag) { %>
+                                            <a href="/photos?tag=<%= encodeURIComponent(tag) %>" class="badge bg-secondary">#<%= tag %></a>
+                                        <% }); %>
+                                    </div>
+                                <% } %>
                             </div>
                             <div class="card-footer bg-transparent">
                                 <a href="/photos/<%= photo.id %>" class="btn btn-sm btn-outline-primary">View</a>
