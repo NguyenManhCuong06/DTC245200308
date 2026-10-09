@@ -117,10 +117,13 @@ const startServer = () => {
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '../public')));
+app.use('/css', express.static(path.join(__dirname, '../public/css')));
+app.use('/js', express.static(path.join(__dirname, '../public/js')));
 app.use(fileUpload({
   createParentPath: true,
-  limits: { fileSize: 10 * 1024 * 1024 }
+  limits: { fileSize: 10 * 1024 * 1024, files: 10 },
+  abortOnLimit: true,
+  responseOnLimit: 'Upload limit exceeded'
 }));
 
 // Session configuration

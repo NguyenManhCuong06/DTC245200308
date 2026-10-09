@@ -59,7 +59,7 @@ const albumController = {
 
   getAlbumById: (req, res) => {
     const query = `
-      SELECT a.*, u.username, p.id as photo_id, p.title as photo_title, p.filename, p.path, p.description as photo_desc
+      SELECT a.*, u.username, p.id as photo_id, p.title as photo_title, p.filename, p.path, p.thumbnail_path, p.is_public as photo_is_public, p.description as photo_desc
       FROM albums a
       JOIN users u ON a.user_id = u.id
       LEFT JOIN photos p ON a.id = p.album_id
@@ -91,7 +91,9 @@ const albumController = {
           id: row.photo_id,
           title: row.photo_title,
           filename: row.filename,
-          path: row.path,
+          path: `/photos/${row.photo_id}/thumbnail`,
+          originalPath: `/photos/${row.photo_id}/original`,
+          is_public: row.photo_is_public,
           description: row.photo_desc
         }));
       

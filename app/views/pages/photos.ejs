@@ -36,6 +36,8 @@
     </nav>
     <div class="container mt-4">
         <h1 class="mb-4">All Photos</h1>
+        <% (messages?.error || []).forEach(function(message) { %><div class="alert alert-danger"><%= message %></div><% }); %>
+        <% (messages?.success || []).forEach(function(message) { %><div class="alert alert-success"><%= message %></div><% }); %>
         
         <% if (user) { %>
             <div class="mb-3">
@@ -48,17 +50,30 @@
                 <% photos.forEach(function(photo) { %>
                     <div class="col">
                         <div class="card h-100">
-                            <img src="<%= photo.path %>" class="card-img-top" alt="<%= photo.title %>">
+                            <button type="button" class="lightbox-trigger" data-full="/photos/<%= photo.id %>/original" aria-label="View <%= photo.title %>">
+                                <img src="<%= photo.path %>" class="card-img-top" alt="<%= photo.title %>" loading="lazy">
+                            </button>
                             <div class="card-body">
                                 <h5 class="card-title"><%= photo.title %></h5>
                                 <p class="card-text text-muted small"><%= photo.album_title || 'Uncategorized' %></p>
                             </div>
                             <div class="card-footer bg-transparent">
                                 <a href="/photos/<%= photo.id %>" class="btn btn-sm btn-outline-primary">View</a>
+                                <% if (user && photo.user_id == user.id) { %>
+                                    <a href="/photos/<%= photo.id %>/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    <form action="/photos/<%= photo.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Delete this photo?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                    </form>
+                                <% } %>
                                 <% if (photo.is_public) { %>
                                     <a href="/photos/<%= photo.id %>/share" class="btn btn-sm btn-outline-success" target="_blank">Share</a>
                                 <% } %>
                             </div>
+                            <dialog id="photo-lightbox" class="photo-lightbox">
+                                <button type="button" class="btn btn-secondary lightbox-close" aria-label="Close">Close</button>
+                                <img alt="">
+                            </dialog>
+                            <script src="/js/gallery.js" defer></script>
                         </div>
                     </div>
                 <% }); %>

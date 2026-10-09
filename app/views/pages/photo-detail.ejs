@@ -49,6 +49,12 @@
                             <% if (photo.is_public) { %>
                                 <button class="btn btn-success" onclick="copyShareLink()">Copy Share Link</button>
                             <% } %>
+                            <% if (user && photo.user_id == user.id) { %>
+                                <a href="/photos/<%= photo.id %>/edit" class="btn btn-outline-secondary">Edit</a>
+                                <form action="/photos/<%= photo.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Delete this photo?');">
+                                    <button type="submit" class="btn btn-outline-danger">Delete</button>
+                                </form>
+                            <% } %>
                         </div>
                     </div>
                 </div>

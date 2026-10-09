@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS photos (
     description TEXT,
     filename VARCHAR(255) NOT NULL,
     path VARCHAR(500) NOT NULL,
+    thumbnail_path VARCHAR(500) NOT NULL,
     album_id INT,
     user_id INT NOT NULL,
     is_public BOOLEAN DEFAULT TRUE,

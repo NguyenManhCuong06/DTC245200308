@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Image Gallery</title>
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <main class="container my-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header"><h1 class="h3 mb-0">Upload Photos</h1></div>
+                    <div class="card-body">
+                        <% (messages?.error || []).forEach(function(message) { %><div class="alert alert-danger"><%= message %></div><% }); %>
+                        <form action="/photos/upload" method="POST" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label class="form-label" for="photos">Images (JPEG, PNG or WebP; up to 10 MB each)</label>
+                                <input id="photos" type="file" name="photos" class="form-control" accept="image/jpeg,image/png,image/webp" multiple required>
+                                <div id="upload-status" class="form-text" aria-live="polite">Select up to 10 images.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="title">Title (used when uploading one image)</label>
+                                <input id="title" type="text" name="title" class="form-control" maxlength="255">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="description">Description</label>
+                                <textarea id="description" name="description" class="form-control" rows="3"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="album-id">Album</label>
+                                <select id="album-id" name="album_id" class="form-select">
+                                    <option value="">No album</option>
+                                    <% albums.forEach(function(album) { %>
+                                        <option value="<%= album.id %>" <%= String(selectedAlbumId) === String(album.id) ? 'selected' : '' %>><%= album.title %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                            <button id="upload-submit" type="submit" class="btn btn-primary">Upload images</button>
+                            <a href="/photos" class="btn btn-secondary">Cancel</a>
+                            <div id="image-previews" class="image-preview-grid mt-3"></div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="/js/gallery.js" defer></script>
+</body>
+</html>
