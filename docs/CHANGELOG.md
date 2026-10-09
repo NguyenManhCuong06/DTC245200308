@@ -30,3 +30,8 @@
 ### Tìm kiếm và phân trang
 - Album có thể tìm theo tên/mô tả; ảnh có thể tìm theo tên ảnh, tên album hoặc tên tag.
 - Danh sách album và ảnh được phân trang; bộ lọc hiện tại được giữ trong liên kết chuyển trang.
+
+### Quản trị
+- Trang Admin liệt kê user, nội dung gần đây và thống kê số user/album/ảnh cùng dung lượng file thực trên đĩa.
+- Admin có thể khóa/mở user và xóa album (kèm ảnh) hoặc ảnh vi phạm; route kiểm tra role admin.
+- Tài khoản bị khóa không thể đăng nhập và phiên hiện tại không còn được xác thực cho request tiếp theo.

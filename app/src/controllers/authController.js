@@ -77,9 +77,14 @@ passport.serializeUser((user, done) => {
 });
 
 passport.deserializeUser((id, done) => {
-  db.query('SELECT * FROM users WHERE id = ?', [id], (err, results) => {
-    done(err, results[0]);
-  });
+  db.query(
+    'SELECT id, username, email, role FROM users WHERE id = ? AND is_locked = FALSE',
+    [id],
+    (err, results) => {
+      if (err) return done(err);
+      done(null, results[0] || false);
+    }
+  );
 });
 
 passport.use(new LocalStrategy({
@@ -91,6 +96,7 @@ passport.use(new LocalStrategy({
     if (results.length === 0) return done(null, false, { message: 'Incorrect email.' });
     
     const user = results[0];
+    if (user.is_locked) return done(null, false, { message: 'This account is locked.' });
     const isValid = bcrypt.compareSync(password, user.password);
     
     if (!isValid) return done(null, false, { message: 'Incorrect password.' });

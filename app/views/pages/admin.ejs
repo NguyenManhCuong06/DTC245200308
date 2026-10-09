@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Image Gallery</title>
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <main class="container my-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h1>Admin Dashboard</h1>
+            <a href="/albums" class="btn btn-secondary">Back to gallery</a>
+        </div>
+        <% (messages?.error || []).forEach(function(message) { %><div class="alert alert-danger"><%= message %></div><% }); %>
+        <% (messages?.success || []).forEach(function(message) { %><div class="alert alert-success"><%= message %></div><% }); %>
+        <% if (stats.missingFiles) { %>
+            <div class="alert alert-warning"><%= stats.missingFiles %> stored image file(s) are missing.</div>
+        <% } %>
+        <section class="row g-3 my-3" aria-label="Gallery statistics">
+            <div class="col-sm-6 col-lg-3"><div class="card card-body"><strong>Users</strong><span><%= stats.userCount %></span></div></div>
+            <div class="col-sm-6 col-lg-3"><div class="card card-body"><strong>Albums</strong><span><%= stats.albumCount %></span></div></div>
+            <div class="col-sm-6 col-lg-3"><div class="card card-body"><strong>Photos</strong><span><%= stats.photoCount %></span></div></div>
+            <div class="col-sm-6 col-lg-3"><div class="card card-body"><strong>Storage</strong><span><%= (stats.storageBytes / 1024 / 1024).toFixed(2) %> MB</span></div></div>
+        </section>
+
+        <section class="mb-5" aria-labelledby="users-heading">
+            <h2 id="users-heading">Users</h2>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead><tr><th>User</th><th>Role</th><th>Albums</th><th>Photos</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                        <% users.forEach(function(account) { %>
+                            <tr>
+                                <td><%= account.username %><br><small><%= account.email %></small></td>
+                                <td><%= account.role %></td>
+                                <td><%= account.album_count %></td>
+                                <td><%= account.photo_count %></td>
+                                <td><%= account.is_locked ? 'Locked' : 'Active' %></td>
+                                <td>
+                                    <% if (account.id != user.id) { %>
+                                        <form action="/admin/users/<%= account.id %>/<%= account.is_locked ? 'unlock' : 'lock' %>" method="POST" onsubmit="return confirm('Change this user account status?');">
+                                            <button type="submit" class="btn btn-sm <%= account.is_locked ? 'btn-success' : 'btn-outline-danger' %>">
+                                                <%= account.is_locked ? 'Unlock' : 'Lock' %>
+                                            </button>
+                                        </form>
+                                    <% } %>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="mb-5" aria-labelledby="albums-heading">
+            <h2 id="albums-heading">Recent albums</h2>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead><tr><th>Album</th><th>Owner</th><th>Visibility</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        <% albums.forEach(function(album) { %>
+                            <tr>
+                                <td><a href="/albums/<%= album.id %>"><%= album.title %></a></td>
+                                <td><%= album.username %></td>
+                                <td><%= album.is_public ? 'Public' : 'Private' %></td>
+                                <td>
+                                    <form action="/admin/albums/<%= album.id %>/delete" method="POST" onsubmit="return confirm('Delete this album and all its photos?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Remove content</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section aria-labelledby="photos-heading">
+            <h2 id="photos-heading">Recent photos</h2>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead><tr><th>Photo</th><th>Owner</th><th>Album</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        <% photos.forEach(function(photo) { %>
+                            <tr>
+                                <td><a href="/photos/<%= photo.id %>"><%= photo.title %></a></td>
+                                <td><%= photo.username %></td>
+                                <td><%= photo.album_id || 'Uncategorized' %></td>
+                                <td>
+                                    <form action="/admin/photos/<%= photo.id %>/delete" method="POST" onsubmit="return confirm('Remove this photo and its files?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Remove content</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

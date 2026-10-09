@@ -53,8 +53,8 @@ async function removeStoredFiles(files) {
 const photoController = {
   getAllPhotos: async (req, res) => {
     const userId = req.user ? req.user.id : -1;
-    const filters = ['((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ?)'];
-    const params = [userId];
+    const filters = ['((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ? OR ? = ?)'];
+    const params = [userId, req.user ? req.user.role : '', 'admin'];
     const searchTerm = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
     const tagFilter = typeof req.query.tag === 'string' ? req.query.tag.trim().slice(0, 50) : '';
     if (tagFilter) {
@@ -269,11 +269,16 @@ const photoController = {
       FROM photos p
       JOIN users u ON p.user_id = u.id
       LEFT JOIN albums a ON p.album_id = a.id
-      WHERE p.id = ? AND ((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ?)
+      WHERE p.id = ? AND ((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ? OR ? = ?)
     `;
     
     try {
-      const [results] = await db.promise().query(query, [req.params.id, req.user ? req.user.id : -1]);
+      const [results] = await db.promise().query(query, [
+        req.params.id,
+        req.user ? req.user.id : -1,
+        req.user ? req.user.role : '',
+        'admin'
+      ]);
       if (!results.length) return notFound(res);
       const photo = results[0];
       const [tags] = await db.promise().query(
@@ -413,8 +418,8 @@ const photoController = {
          FROM photos p
          LEFT JOIN albums a ON a.id = p.album_id
          WHERE p.id = ?
-           AND ((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ?)`,
-        [req.params.id, req.user ? req.user.id : -1]
+           AND ((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ? OR ? = ?)`,
+        [req.params.id, req.user ? req.user.id : -1, req.user ? req.user.role : '', 'admin']
       );
       if (!photos.length) return res.sendStatus(404);
       const storedPath = req.params.variant === 'thumbnail'
@@ -445,8 +450,8 @@ const photoController = {
         `SELECT p.* FROM photos p
          LEFT JOIN albums a ON a.id = p.album_id
          WHERE p.id = ?
-           AND ((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ?)`,
-        [req.params.id, req.user ? req.user.id : -1]
+           AND ((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ? OR ? = ?)`,
+        [req.params.id, req.user ? req.user.id : -1, req.user ? req.user.role : '', 'admin']
       );
       if (!photos.length) return res.status(404).json({ error: 'Photo not found' });
       res.json({

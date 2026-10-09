@@ -5,8 +5,8 @@ const albumController = {
   getAllAlbums: async (req, res) => {
     const userId = req.user ? req.user.id : -1;
     const searchTerm = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
-    const filters = ['(a.is_public = TRUE OR a.user_id = ?)'];
-    const filterParams = [userId];
+    const filters = ['(a.is_public = TRUE OR a.user_id = ? OR ? = ?)'];
+    const filterParams = [userId, req.user ? req.user.role : '', 'admin'];
     if (searchTerm) {
       filters.push('(a.title LIKE ? OR a.description LIKE ?)');
       filterParams.push(`%${searchTerm}%`, `%${searchTerm}%`);
@@ -99,10 +99,10 @@ const albumController = {
       FROM albums a
       JOIN users u ON a.user_id = u.id
       LEFT JOIN photos p ON a.id = p.album_id AND (p.is_public = TRUE OR a.user_id = ?)
-      WHERE a.id = ? AND (a.is_public = TRUE OR a.user_id = ?)
+      WHERE a.id = ? AND (a.is_public = TRUE OR a.user_id = ? OR ? = ?)
     `;
     const userId = req.user ? req.user.id : -1;
-    db.query(query, [userId, req.params.id, userId], (err, results) => {
+    db.query(query, [userId, req.params.id, userId, req.user ? req.user.role : '', 'admin'], (err, results) => {
       if (err) {
         return res.status(500).send('Unable to load album');
       }

@@ -152,11 +152,13 @@ const albumRoutes = require('./routes/albums');
 const photoRoutes = require('./routes/photos');
 const apiRoutes = require('./routes/api');
 const shareRoutes = require('./routes/shares');
+const adminRoutes = require('./routes/admin');
 
 app.use('/', authRoutes);
 app.use('/albums', albumRoutes);
 app.use('/photos', photoRoutes);
 app.use('/share', shareRoutes);
+app.use('/admin', adminRoutes);
 app.use('/api', apiRoutes);
 
 // Health check endpoint

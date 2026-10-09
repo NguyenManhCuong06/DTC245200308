@@ -23,13 +23,13 @@ router.get('/albums', (req, res) => {
            COUNT(CASE WHEN p.is_public = TRUE OR a.user_id = ? THEN p.id END) as photo_count
     FROM albums a
     LEFT JOIN photos p ON a.id = p.album_id
-    WHERE a.is_public = TRUE OR a.user_id = ?
+    WHERE a.is_public = TRUE OR a.user_id = ? OR ? = ?
     GROUP BY a.id
     ORDER BY a.created_at DESC
   `;
   
   const userId = req.user ? req.user.id : -1;
-  db.query(query, [userId, userId], (err, results) => {
+  db.query(query, [userId, userId, req.user ? req.user.role : '', 'admin'], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
@@ -42,11 +42,11 @@ router.get('/photos', (req, res) => {
     FROM photos p
     JOIN users u ON p.user_id = u.id
     LEFT JOIN albums a ON p.album_id = a.id
-    WHERE (p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ?
+    WHERE (p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ? OR ? = ?
     ORDER BY p.created_at DESC
   `;
   
-  db.query(query, [req.user ? req.user.id : -1], (err, results) => {
+  db.query(query, [req.user ? req.user.id : -1, req.user ? req.user.role : '', 'admin'], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     results.forEach(photo => {
       photo.thumbnail_url = `/photos/${photo.id}/thumbnail`;
