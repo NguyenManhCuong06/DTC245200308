@@ -1,4 +1,4 @@
-const { db } = require('../app');
+const { db, app } = require('../app');
 const path = require('path');
 const fs = require('fs');
 
@@ -36,7 +36,7 @@ const photoController = {
 
     const file = req.files.photo;
     const fileName = `${Date.now()}-${file.name}`;
-    const uploadPath = path.join(__dirname, '../../public/uploads', fileName);
+    const uploadPath = path.join(__dirname, '../public/uploads', fileName);
     
     file.mv(uploadPath, (err) => {
       if (err) {
@@ -51,6 +51,10 @@ const photoController = {
         if (dbErr) {
           fs.unlinkSync(uploadPath);
           return res.status(500).json({ error: dbErr.message });
+        }
+        // Increment Prometheus counter
+        if (app.locals.metrics?.photosUploadedTotal) {
+          app.locals.metrics.photosUploadedTotal.inc();
         }
         res.redirect('/albums/' + (album_id || ''));
       });

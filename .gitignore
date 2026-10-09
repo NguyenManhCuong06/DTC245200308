@@ -50,8 +50,7 @@ nginx/certs/selfsigned.crt
 nginx/certs/selfsigned.key
 nginx/certs/*.pfx
 
-# Database
-*.sql
+# Database dumps (keep database initialization scripts under version control)
 *.dump
 *.bak
 

@@ -1,7 +1,6 @@
-version: '3.8'
+name: gallery
 
 services:
-  # Web Application (Express.js)
   web:
     build:
       context: ./app
@@ -9,220 +8,240 @@ services:
     container_name: web
     restart: unless-stopped
     environment:
-      - DB_HOST=db
-      - DB_USER=${MYSQL_USER}
-      - DB_PASSWORD=${MYSQL_PASSWORD}
-      - DB_NAME=${MYSQL_DATABASE}
-      - NODE_ENV=production
+      DB_HOST: db
+      DB_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      DB_NAME: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
+      NODE_ENV: production
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
     networks:
       - frontend
       - backend
       - monitoring
     volumes:
       - ./app/public/uploads:/app/public/uploads
+      - ./app/src/logs:/app/src/logs
+    tmpfs:
+      - /tmp
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    security_opt:
-      - no-new-privileges:true
-    # cap_drop removed for health check compatibility
-    read_only: false
-    mem_limit: 512m
-    cpus: '0.5'
-    labels:
-      - "prometheus.enable=true"
-      - "prometheus.port=3000"
-
-  # MySQL Database
-  db:
-    image: mysql:8.0
-    container_name: db
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-    networks:
-      - backend
-      - monitoring
-    volumes:
-      - db_data:/var/lib/mysql
-      - ./db/init-scripts:/docker-entrypoint-initdb.d
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-    security_opt:
-      - no-new-privileges:true
-    # cap_drop removed for MySQL compatibility
-    mem_limit: 1g
-    cpus: '1.0'
-    labels:
-      - "prometheus.enable=true"
-      - "prometheus.port=3306"
-
-  # phpMyAdmin
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
-    container_name: phpmyadmin
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      - PMA_HOST=db
-      - PMA_USER=${MYSQL_USER}
-      - PMA_PASSWORD=${MYSQL_PASSWORD}
-    networks:
-      - frontend
-      - backend
-    depends_on:
-      - db
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    mem_limit: 256m
-    cpus: '0.3'
-    labels:
-      - "prometheus.enable=true"
-      - "prometheus.port=80"
+    read_only: true
+    mem_limit: 512m
+    cpus: "0.5"
 
-  # Nginx Reverse Proxy
+  db:
+    image: mysql:8.0.46
+    container_name: db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
+      MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_EXPORTER_PASSWORD: ${MYSQL_EXPORTER_PASSWORD:?Set MYSQL_EXPORTER_PASSWORD in .env}
+    networks:
+      - backend
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/init-scripts:/docker-entrypoint-initdb.d:ro
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "--silent"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: "1.0"
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5.2.3
+    container_name: phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_ABSOLUTE_URI: https://localhost/phpmyadmin/
+      PMA_AUTH_TYPE: cookie
+      UPLOAD_LIMIT: 20M
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpus: "0.3"
+
   nginx:
-    image: nginx:alpine
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
     container_name: nginx
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "80:8080"
+      - "443:8443"
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/certs:/etc/nginx/certs
-      - nginx_logs:/var/log/nginx
-      - ./app/public/uploads:/usr/share/nginx/html/uploads
-      - ./web_uploads:/uploads
+      - nginx_cache:/var/cache/nginx
+      - nginx_run:/var/run/nginx
+      - nginx_certs:/etc/nginx/certs
+      - ./app/public/uploads:/usr/share/nginx/html/uploads:ro
     networks:
       - frontend
       - monitoring
     depends_on:
-      - web
-    # security_opt removed for nginx compatibility with volume mounts
-    # cap_drop removed for nginx compatibility with volume mounts
-    read_only: false
-    entrypoint: /bin/sh
-    command: -c "rm -f /var/log/nginx/access.log /var/log/nginx/error.log && touch /var/log/nginx/access.log /var/log/nginx/error.log && nginx -g 'daemon off;'"
+      web:
+        condition: service_healthy
+      phpmyadmin:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/healthz"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
     mem_limit: 128m
-    cpus: '0.2'
-    labels:
-      - "prometheus.enable=true"
-      - "prometheus.port=80"
+    cpus: "0.2"
 
-  # Prometheus
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.15.0
     container_name: prometheus
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     networks:
       - monitoring
+      - host-access
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.size=1GB'
-      - '--web.enable-lifecycle'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.size=1GB"
+      - "--web.enable-lifecycle"
+    healthcheck:
+      test: ["CMD", "/bin/wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     mem_limit: 512m
-    cpus: '0.5'
+    cpus: "0.5"
 
-  # Grafana
   grafana:
-    image: grafana/grafana-enterprise:latest
+    image: grafana/grafana-enterprise:13.2.3
     container_name: grafana
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
     networks:
       - monitoring
+      - host-access
     depends_on:
-      - prometheus
-      - loki
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_started
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
-      - GF_USERS_ALLOW_SIGN_UP=false
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: http://localhost:3000/
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     mem_limit: 512m
-    cpus: '0.5'
+    cpus: "0.5"
 
-  # Loki
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.7.8
     container_name: loki
     restart: unless-stopped
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     volumes:
       - loki_data:/loki
-      - ./loki/loki-config.yml:/etc/loki/local-config.yaml
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml:ro
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - monitoring
+      - host-access
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     mem_limit: 256m
-    cpus: '0.3'
+    cpus: "0.3"
 
-  # Promtail
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:3.6.8
     container_name: promtail
     restart: unless-stopped
     volumes:
-      - ./promtail/promtail-config.yml:/etc/promtail/config.yml
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - ./app/logs:/app/logs:ro
-      - nginx_logs:/logs/nginx:ro
+      - ./app/src/logs:/app/src/logs:ro
     command: -config.file=/etc/promtail/config.yml
     networks:
       - monitoring
+      - host-access
     depends_on:
-      - loki
-    read_only: false
+      loki:
+        condition: service_started
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
     mem_limit: 128m
-    cpus: '0.2'
+    cpus: "0.2"
 
-  # cAdvisor
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
     container_name: cadvisor
     restart: unless-stopped
-    ports:
-      - "8080:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:rw
@@ -230,82 +249,121 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
     networks:
       - monitoring
+    healthcheck:
+      test: ["CMD", "/usr/bin/wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     mem_limit: 256m
-    cpus: '0.3'
+    cpus: "0.3"
 
-  # Node Exporter
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.12.1
     container_name: node-exporter
     restart: unless-stopped
     ports:
-      - "9100:9100"
+      - "127.0.0.1:9100:9100"
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
     networks:
       - monitoring
+      - host-access
+    healthcheck:
+      test: ["CMD", "/bin/wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9100/metrics"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     mem_limit: 128m
-    cpus: '0.2'
+    cpus: "0.2"
 
-  # MySQL Exporter
   mysqld-exporter:
-    image: prom/mysqld-exporter:latest
+    image: prom/mysqld-exporter:v0.20.0
     container_name: mysqld-exporter
     restart: unless-stopped
     ports:
-      - "9104:9104"
+      - "127.0.0.1:9104:9104"
     environment:
-      - DATA_SOURCE_NAME=app_user:AppUser@123456@tcp(db:3306)/
-    entrypoint: /bin/sh
+      MYSQL_EXPORTER_PASSWORD: ${MYSQL_EXPORTER_PASSWORD:?Set MYSQL_EXPORTER_PASSWORD in .env}
+    entrypoint: ["/bin/sh", "-ec"]
     command:
-      - -c
       - |
-        cat > /tmp/.my.cnf <<EOF
-        [client]
-        user=app_user
-        password=AppUser@123456
-        host=db
-        port=3306
-        EOF
-        /bin/mysqld_exporter --config.my-cnf=/tmp/.my.cnf --mysqld.address=db:3306
+        umask 077
+        printf '[client]\nuser=gallery_exporter\npassword=%s\nhost=db\nport=3306\n' "$$MYSQL_EXPORTER_PASSWORD" > /tmp/.my.cnf
+        exec /bin/mysqld_exporter --config.my-cnf=/tmp/.my.cnf --mysqld.address=db:3306
     networks:
       - backend
       - monitoring
+      - host-access
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "/bin/wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9104/metrics"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     security_opt:
       - no-new-privileges:true
-    # cap_drop removed for mysqld-exporter compatibility
+    cap_drop:
+      - ALL
     mem_limit: 128m
-    cpus: '0.2'
+    cpus: "0.2"
+
+  nginx-prometheus-exporter:
+    image: nginx/nginx-prometheus-exporter:1.4.2
+    container_name: nginx-prometheus-exporter
+    restart: unless-stopped
+    command:
+      - "--nginx.scrape-uri=http://nginx:8081/stub_status"
+    ports:
+      - "127.0.0.1:9113:9113"
+    networks:
+      - monitoring
+      - host-access
+    depends_on:
+      nginx:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 64m
+    cpus: "0.1"
 
 networks:
   frontend:
     driver: bridge
   backend:
     driver: bridge
+    internal: true
   monitoring:
+    driver: bridge
+    internal: true
+  host-access:
     driver: bridge
 
 volumes:
   db_data:
-  phpmyadmin_data:
   grafana_data:
   prometheus_data:
   loki_data:
-  web_uploads:
-  nginx_logs:
+  nginx_cache:
+  nginx_run:
+  nginx_certs:

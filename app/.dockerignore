@@ -1,0 +1,12 @@
+node_modules/
+.git/
+.env*
+src/logs/
+public/uploads/
+coverage/
+test-results/
+screenshots/
+tmp/
+temp/
+*.log
+*.tmp

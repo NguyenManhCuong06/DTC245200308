@@ -1,62 +1,94 @@
 {
-  "dashboard": {
-    "id": null,
-    "title": "Container Monitoring",
-    "tags": ["container", "docker"],
-    "timezone": "browser",
-    "schemaVersion": 39,
-    "version": 1,
-    "refresh": "10s",
-    "panels": [
-      {
-        "id": 1,
-        "title": "Container CPU Usage",
-        "type": "graph",
-        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
-        "targets": [
-          {
-            "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\"web|db|nginx|prometheus|grafana|loki|promtail|cadvisor\"}[5m])) by (name)",
-            "legendFormat": "{{name}}",
-            "refId": "A"
-          }
-        ],
-        "yaxes": [{"format": "short", "label": "CPU", "logBase": 1}]
-      },
-      {
-        "id": 2,
-        "title": "Container Memory Usage",
-        "type": "graph",
-        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
-        "targets": [
-          {
-            "expr": "container_memory_working_set_bytes{name=~\"web|db|nginx|prometheus|grafana|loki|promtail|cadvisor\"}",
-            "legendFormat": "{{name}}",
-            "refId": "A"
-          }
-        ],
-        "yaxes": [{"format": "bytes", "label": "Memory", "logBase": 1}]
-      },
-      {
-        "id": 3,
-        "title": "Container Network",
-        "type": "graph",
-        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
-        "targets": [
-          {
-            "expr": "rate(container_network_receive_bytes_total[5m])",
-            "legendFormat": "Receive - {{interface}}",
-            "refId": "A"
-          },
-          {
-            "expr": "rate(container_network_transmit_bytes_total[5m])",
-            "legendFormat": "Transmit - {{interface}}",
-            "refId": "B"
-          }
-        ],
-        "yaxes": [{"format": "short", "label": "Bytes/s", "logBase": 1}]
-      }
-    ]
-  },
-  "folderId": 0,
-  "overwrite": false
+    "id":  null,
+    "title":  "Container Monitoring",
+    "tags":  [
+                 "container",
+                 "docker"
+             ],
+    "timezone":  "browser",
+    "schemaVersion":  39,
+    "version":  1,
+    "refresh":  "10s",
+    "panels":  [
+                   {
+                       "id":  1,
+                       "title":  "Container CPU Usage",
+                       "type":  "graph",
+                       "gridPos":  {
+                                       "x":  0,
+                                       "y":  0,
+                                       "w":  12,
+                                       "h":  8
+                                   },
+                       "targets":  [
+                                       {
+                                           "expr":  "sum(rate(container_cpu_usage_seconds_total{name=~\"web|db|phpmyadmin|nginx|prometheus|grafana|loki|promtail|cadvisor|node-exporter|mysqld-exporter|nginx-prometheus-exporter\"}[5m])) by (name)",
+                                           "legendFormat":  "{{name}}",
+                                           "refId":  "A"
+                                       }
+                                   ],
+                       "yaxes":  [
+                                     {
+                                         "format":  "short",
+                                         "label":  "CPU",
+                                         "logBase":  1
+                                     }
+                                 ]
+                   },
+                   {
+                       "id":  2,
+                       "title":  "Container Memory Usage",
+                       "type":  "graph",
+                       "gridPos":  {
+                                       "x":  12,
+                                       "y":  0,
+                                       "w":  12,
+                                       "h":  8
+                                   },
+                       "targets":  [
+                                       {
+                                           "expr":  "container_memory_working_set_bytes{name=~\"web|db|phpmyadmin|nginx|prometheus|grafana|loki|promtail|cadvisor|node-exporter|mysqld-exporter|nginx-prometheus-exporter\"}",
+                                           "legendFormat":  "{{name}}",
+                                           "refId":  "A"
+                                       }
+                                   ],
+                       "yaxes":  [
+                                     {
+                                         "format":  "bytes",
+                                         "label":  "Memory",
+                                         "logBase":  1
+                                     }
+                                 ]
+                   },
+                   {
+                       "id":  3,
+                       "title":  "Container Network",
+                       "type":  "graph",
+                       "gridPos":  {
+                                       "x":  0,
+                                       "y":  8,
+                                       "w":  12,
+                                       "h":  8
+                                   },
+                       "targets":  [
+                                       {
+                                           "expr":  "rate(container_network_receive_bytes_total[5m])",
+                                           "legendFormat":  "Receive - {{interface}}",
+                                           "refId":  "A"
+                                       },
+                                       {
+                                           "expr":  "rate(container_network_transmit_bytes_total[5m])",
+                                           "legendFormat":  "Transmit - {{interface}}",
+                                           "refId":  "B"
+                                       }
+                                   ],
+                       "yaxes":  [
+                                     {
+                                         "format":  "short",
+                                         "label":  "Bytes/s",
+                                         "logBase":  1
+                                     }
+                                 ]
+                   }
+               ]
 }
