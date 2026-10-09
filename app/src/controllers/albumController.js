@@ -4,7 +4,8 @@ const notFound = (res) => res.status(404).render('pages/404', { title: 'Album no
 const albumController = {
   getAllAlbums: (req, res) => {
     const query = `
-      SELECT a.*, u.username, COUNT(p.id) as photo_count 
+      SELECT a.*, u.username,
+             COUNT(CASE WHEN p.is_public = TRUE OR a.user_id = ? THEN p.id END) as photo_count
       FROM albums a 
       JOIN users u ON a.user_id = u.id 
       LEFT JOIN photos p ON a.id = p.album_id 
@@ -13,7 +14,8 @@ const albumController = {
       ORDER BY a.created_at DESC
     `;
     
-    db.query(query, [req.user ? req.user.id : -1], (err, results) => {
+    const userId = req.user ? req.user.id : -1;
+    db.query(query, [userId, userId], (err, results) => {
       if (err) {
         return res.status(500).send('Unable to load albums');
       }
@@ -62,11 +64,11 @@ const albumController = {
       SELECT a.*, u.username, p.id as photo_id, p.title as photo_title, p.filename, p.path, p.thumbnail_path, p.is_public as photo_is_public, p.description as photo_desc
       FROM albums a
       JOIN users u ON a.user_id = u.id
-      LEFT JOIN photos p ON a.id = p.album_id
+      LEFT JOIN photos p ON a.id = p.album_id AND (p.is_public = TRUE OR a.user_id = ?)
       WHERE a.id = ? AND (a.is_public = TRUE OR a.user_id = ?)
     `;
-    
-    db.query(query, [req.params.id, req.user ? req.user.id : -1], (err, results) => {
+    const userId = req.user ? req.user.id : -1;
+    db.query(query, [userId, req.params.id, userId], (err, results) => {
       if (err) {
         return res.status(500).send('Unable to load album');
       }

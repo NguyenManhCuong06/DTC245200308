@@ -12,3 +12,8 @@
 - Tên file lưu trữ được sinh ngẫu nhiên; Sharp tạo thumbnail WebP và trang lưới dùng thumbnail.
 - Ảnh chỉ được phục vụ qua route kiểm tra quyền; đường dẫn `/uploads/...` không còn được phục vụ công khai.
 - Thêm xem ảnh lớn, sửa tiêu đề/mô tả và xóa ảnh có xác nhận.
+
+### Phân quyền
+- Album và ảnh riêng tư chỉ được xem bởi chủ sở hữu; API cũng lọc nội dung và không trả đường dẫn file lưu trữ.
+- Sửa/xóa được giới hạn theo chủ sở hữu; tải file chỉ qua route kiểm tra quyền, không qua đường dẫn tĩnh.
+- Thêm middleware xác thực và kiểm tra role admin để các route quản trị dùng chung.
