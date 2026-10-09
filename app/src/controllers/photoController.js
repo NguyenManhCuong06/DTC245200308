@@ -1,4 +1,4 @@
-const { db, app } = require('../app');
+const db = require('../db');
 const path = require('path');
 const fs = require('fs');
 
@@ -52,10 +52,7 @@ const photoController = {
           fs.unlinkSync(uploadPath);
           return res.status(500).json({ error: dbErr.message });
         }
-        // Increment Prometheus counter
-        if (app.locals.metrics?.photosUploadedTotal) {
-          app.locals.metrics.photosUploadedTotal.inc();
-        }
+        req.app.locals.metrics?.photosUploadedTotal?.inc();
         res.redirect('/albums/' + (album_id || ''));
       });
     });

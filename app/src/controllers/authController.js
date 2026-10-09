@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
-const { db } = require('../app');
+const db = require('../db');
 
 const authController = {
   renderLogin: (req, res) => {

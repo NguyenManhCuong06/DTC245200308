@@ -4,7 +4,6 @@ const fileUpload = require('express-fileupload');
 const path = require('path');
 const passport = require('passport');
 const dotenv = require('dotenv');
-const mysql = require('mysql2');
 const promClient = require('prom-client');
 const flash = require('connect-flash');
 const fs = require('fs');
@@ -96,16 +95,7 @@ app.locals.metrics = {
 };
 
 // Database connection pool
-const db = mysql.createPool({
-  host: process.env.DB_HOST || 'db',
-  user: process.env.DB_USER || 'app_user',
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  charset: 'utf8mb4_unicode_ci'
-});
+const db = require('./db');
 app.set('db', db);
 
 // Test database connection

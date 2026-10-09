@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const photoController = require('../controllers/photoController');
 const albumController = require('../controllers/albumController');
+const db = require('../db');
 
 // API Health Check
 router.get('/health', (req, res) => {
@@ -26,7 +27,7 @@ router.get('/albums', (req, res) => {
     ORDER BY a.created_at DESC
   `;
   
-  req.app.get('db').query(query, [req.user ? req.user.id : -1], (err, results) => {
+  db.query(query, [req.user ? req.user.id : -1], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
@@ -43,7 +44,7 @@ router.get('/photos', (req, res) => {
     ORDER BY p.created_at DESC
   `;
   
-  req.app.get('db').query(query, [req.user ? req.user.id : -1], (err, results) => {
+  db.query(query, [req.user ? req.user.id : -1], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
