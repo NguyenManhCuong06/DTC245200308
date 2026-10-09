@@ -98,15 +98,20 @@ app.locals.metrics = {
 const db = require('./db');
 app.set('db', db);
 
-// Test database connection
-db.getConnection((err, connection) => {
-  if (err) {
-    console.error('Database connection error:', err.message);
-  } else {
+const startServer = () => {
+  db.query('SELECT 1', (err) => {
+    if (err) {
+      console.error('Database connection error:', err.message);
+      setTimeout(startServer, 1000);
+      return;
+    }
+
     console.log('Connected to MySQL database');
-    connection.release();
-  }
-});
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  });
+};
 
 // Middleware
 app.use(express.json());
@@ -169,8 +174,6 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+startServer();
 
 module.exports = { app, db };
