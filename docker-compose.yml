@@ -77,9 +77,11 @@ services:
     image: phpmyadmin/phpmyadmin:5.2.3
     container_name: phpmyadmin
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
     environment:
       PMA_HOST: db
-      PMA_ABSOLUTE_URI: https://localhost/phpmyadmin/
+      PMA_ABSOLUTE_URI: http://localhost:8080/
       PMA_AUTH_TYPE: cookie
       UPLOAD_LIMIT: 20M
     networks:
