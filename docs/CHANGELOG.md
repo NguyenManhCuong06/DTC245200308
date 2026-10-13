@@ -64,8 +64,9 @@ sum(count_over_time({container="nginx"}[5m]))
 - Docker socket mount của Promtail vẫn `:ro`. Chế độ read-only của mount không
   giới hạn các lệnh ghi được gửi qua Docker API; ghi nhận đây là rủi ro được
   chấp nhận khi dùng docker service discovery, không dùng proxy service.
-- Secret scan hai commit chưa push và tag `gd3-log-hardening-ok` không tìm thấy
-  private key hoặc credential literal theo các mẫu quét; không in giá trị nào.
+- Secret scan các commit chưa push trong `origin/dev..HEAD` và tag local
+  `gd3-log-hardening-ok` không tìm thấy private key hoặc credential literal
+  theo các mẫu quét; không in giá trị nào.
 
 ## Giai đoạn 2
 
