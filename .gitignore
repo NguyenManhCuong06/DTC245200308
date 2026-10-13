@@ -12,6 +12,10 @@ cookies*.txt
 credentials/
 secrets/
 
+# Design exports and archives
+stitch-design/
+*.zip
+
 # Dependencies
 node_modules/
 **/node_modules/

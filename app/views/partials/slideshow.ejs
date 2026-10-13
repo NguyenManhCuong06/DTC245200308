@@ -1,0 +1,59 @@
+<!-- Cinema Fullscreen Slideshow Overlay (Lumina Theater Mode) -->
+<div id="cinemaSlideshowModal" class="cinema-modal" aria-hidden="true" role="dialog" aria-label="Trình chiếu ảnh toàn màn hình">
+    <div class="cinema-header">
+        <div class="d-flex align-items-center gap-3">
+            <button type="button" class="cinema-btn d-inline-flex align-items-center gap-2" id="cinemaExitBtn" aria-label="Thoát trình chiếu">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+                <span class="d-none d-sm-inline">Thoát</span>
+                <span class="badge bg-dark border border-secondary text-muted font-monospace d-none d-md-inline">ESC</span>
+            </button>
+            <div class="text-white">
+                <span class="fw-semibold" id="cinemaAlbumTitle">Trình chiếu</span>
+                <span class="text-muted ms-2 small d-none d-sm-inline" id="cinemaPhotoTitle"></span>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary px-3 py-2 font-monospace" id="cinemaCounter">1 / 1</span>
+        </div>
+    </div>
+
+    <div class="cinema-body">
+        <button type="button" class="cinema-nav-arrow left" id="cinemaPrevBtn" aria-label="Ảnh trước">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </button>
+        
+        <img id="cinemaImage" src="" alt="Cinema slide">
+        
+        <button type="button" class="cinema-nav-arrow right" id="cinemaNextBtn" aria-label="Ảnh kế tiếp">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </button>
+    </div>
+
+    <div class="cinema-footer">
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="cinema-btn d-inline-flex align-items-center gap-2" id="cinemaPlayPauseBtn">
+                <svg id="cinemaPlayIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span id="cinemaPlayText">Tự động chạy</span>
+            </button>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="#" id="cinemaDownloadBtn" class="cinema-btn d-inline-flex align-items-center gap-2 text-decoration-none" download>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>Tải ảnh này</span>
+            </a>
+        </div>
+    </div>
+</div>

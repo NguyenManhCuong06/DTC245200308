@@ -1,53 +1,99 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %> - Image Gallery</title>
-    <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/css/style.css">
+    <%- include('../partials/head', { title }) %>
 </head>
 <body>
-    <main class="container my-4">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-header"><h1 class="h3 mb-0">Upload Photos</h1></div>
-                    <div class="card-body">
-                        <% (messages?.error || []).forEach(function(message) { %><div class="alert alert-danger"><%= message %></div><% }); %>
-                        <form action="/photos/upload" method="POST" enctype="multipart/form-data">
-                            <div class="mb-3">
-                                <label class="form-label" for="photos">Images (JPEG, PNG or WebP; up to 10 MB each)</label>
-                                <input id="photos" type="file" name="photos" class="form-control" accept="image/jpeg,image/png,image/webp" multiple required>
-                                <div id="upload-status" class="form-text" aria-live="polite">Select up to 10 images.</div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label" for="title">Title (used when uploading one image)</label>
-                                <input id="title" type="text" name="title" class="form-control" maxlength="255">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label" for="description">Description</label>
-                                <textarea id="description" name="description" class="form-control" rows="3"></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label" for="album-id">Album</label>
-                                <select id="album-id" name="album_id" class="form-select">
-                                    <option value="">No album</option>
-                                    <% albums.forEach(function(album) { %>
-                                        <option value="<%= album.id %>" <%= String(selectedAlbumId) === String(album.id) ? 'selected' : '' %>><%= album.title %></option>
-                                    <% }); %>
-                                </select>
-                            </div>
-                            <button id="upload-submit" type="submit" class="btn btn-primary">Upload images</button>
-                            <a href="/photos" class="btn btn-secondary">Cancel</a>
-                            <div id="image-previews" class="image-preview-grid mt-3"></div>
-                        </form>
+    <%- include('../partials/navbar', { user }) %>
+
+    <main class="container py-4" style="max-width: 860px;">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center pb-3 mb-4 border-bottom border-secondary border-opacity-25">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1 small text-muted font-monospace">
+                        <li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Lumina</a></li>
+                        <li class="breadcrumb-item"><a href="/photos" class="text-decoration-none text-muted">Ảnh</a></li>
+                        <li class="breadcrumb-item active text-primary" aria-current="page">Tải lên</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 fw-bold mb-0 text-white">Trung tâm Tải ảnh / Upload Center</h1>
+            </div>
+            <a href="/photos" class="btn btn-secondary btn-sm">Quay lại thư viện</a>
+        </div>
+
+        <% (messages?.error || []).forEach(function(message) { %>
+            <div class="alert alert-danger"><%= message %></div>
+        <% }); %>
+        <% (messages?.success || []).forEach(function(message) { %>
+            <div class="alert alert-success"><%= message %></div>
+        <% }); %>
+
+        <div class="card p-4">
+            <form action="/photos/upload" method="POST" enctype="multipart/form-data" id="uploadForm">
+                <!-- Dropzone Area -->
+                <div class="upload-dropzone mb-3" id="uploadDropzone">
+                    <div class="upload-dropzone-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="1.5">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                    </div>
+                    <h2 class="h5 fw-semibold text-white mb-1">Kéo thả ảnh vào đây hoặc bấm để chọn</h2>
+                    <p class="text-muted small mb-2">Hỗ trợ định dạng: JPEG, PNG hoặc WebP</p>
+                    <span class="badge bg-dark border border-secondary text-muted font-monospace">Tối đa 10 ảnh • Mỗi ảnh tối đa 10 MB</span>
+                </div>
+
+                <!-- Hidden / Standard file input -->
+                <input id="photos" type="file" name="photos" class="visually-hidden" accept="image/jpeg,image/png,image/webp" multiple required>
+
+                <!-- Live Status & Preview Grid -->
+                <div id="upload-status" class="form-text text-muted mb-2" aria-live="polite">Chưa chọn ảnh nào.</div>
+                <div id="image-previews" class="image-preview-grid mb-4"></div>
+
+                <!-- Metadata Inputs -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="album-id">Gắn vào Album</label>
+                        <select id="album-id" name="album_id" class="form-select">
+                            <option value="">-- Không gắn album (Ảnh rời) --</option>
+                            <% albums.forEach(function(album) { %>
+                                <option value="<%= album.id %>" <%= String(selectedAlbumId) === String(album.id) ? 'selected' : '' %>>
+                                    <%= album.title %> <%= album.is_public ? '(Công khai)' : '(Riêng tư)' %>
+                                </option>
+                            <% }); %>
+                        </select>
+                        <div class="form-text text-muted small">Ảnh sẽ thừa hưởng tính chất riêng tư/công khai của album.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label" for="title">Tiêu đề ảnh (Tùy chọn nếu tải 1 ảnh)</label>
+                        <input id="title" type="text" name="title" class="form-control" maxlength="255" placeholder="Để trống sẽ tự lấy tên file gốc">
                     </div>
                 </div>
-            </div>
+
+                <div class="mb-4">
+                    <label class="form-label" for="description">Mô tả tác phẩm</label>
+                    <textarea id="description" name="description" class="form-control" rows="2" placeholder="Ghi chú, bối cảnh chụp hoặc thông tin kỹ thuật..."></textarea>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 pt-3 border-top border-secondary border-opacity-25">
+                    <a href="/photos" class="btn btn-secondary">Hủy bỏ</a>
+                    <button id="upload-submit" type="submit" class="btn btn-primary px-4">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>Bắt đầu Tải lên</span>
+                    </button>
+                </div>
+            </form>
         </div>
     </main>
-    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+    <%- include('../partials/footer') %>
     <script src="/js/gallery.js" defer></script>
 </body>
 </html>

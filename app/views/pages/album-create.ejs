@@ -1,79 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %> - Image Gallery</title>
-    <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/css/style.css">
+    <%- include('../partials/head', { title: 'Tạo Album Mới' }) %>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="/">Gallery</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link active" href="/albums">Albums</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/photos">Photos</a></li>
-                </ul>
-                <ul class="navbar-nav">
-                    <% if (user && user.role === 'admin') { %><li class="nav-item"><a class="nav-link" href="/admin">Admin</a></li><% } %>
-                    <% if (user) { %>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                <%= user.username %>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="/logout">Logout</a></li>
-                            </ul>
-                        </li>
-                    <% } else { %>
-                        <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
-                    <% } %>
-                </ul>
+    <%- include('../partials/navbar', { user }) %>
+
+    <main class="container py-4" style="max-width: 720px;">
+        <div class="d-flex justify-content-between align-items-center pb-3 mb-4 border-bottom border-secondary border-opacity-25">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1 small text-muted font-monospace">
+                        <li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Lumina</a></li>
+                        <li class="breadcrumb-item"><a href="/albums" class="text-decoration-none text-muted">Albums</a></li>
+                        <li class="breadcrumb-item active text-primary" aria-current="page">Tạo mới</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 fw-bold mb-0 text-white">Tạo Bộ Sưu Tập / New Album</h1>
             </div>
+            <a href="/albums" class="btn btn-secondary btn-sm">Quay lại danh sách</a>
         </div>
-    </nav>
-    <div class="container mt-4">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="mb-0">Create New Album</h3>
-                    </div>
-                    <div class="card-body">
-                        <% (messages?.error || []).forEach(function(message) { %><div class="alert alert-danger"><%= message %></div><% }); %>
-                        <form action="/albums" method="POST">
-                            <div class="mb-3">
-                                <label class="form-label">Album Title *</label>
-                                <input type="text" name="title" class="form-control" placeholder="Enter album title" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Description</label>
-                                <textarea name="description" class="form-control" rows="4" placeholder="Enter album description (optional)"></textarea>
-                            </div>
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" name="is_public" class="form-check-input" id="is_public" checked>
-                                <label class="form-check-label" for="is_public">Public (visible to everyone)</label>
-                            </div>
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-primary">Create Album</button>
-                                <a href="/albums" class="btn btn-secondary">Cancel</a>
-                            </div>
-                        </form>
-                    </div>
+
+        <% (messages?.error || []).forEach(function(message) { %>
+            <div class="alert alert-danger"><%= message %></div>
+        <% }); %>
+        <% (messages?.success || []).forEach(function(message) { %>
+            <div class="alert alert-success"><%= message %></div>
+        <% }); %>
+
+        <div class="card p-4">
+            <form action="/albums" method="POST">
+                <div class="mb-3">
+                    <label class="form-label" for="title">Tên Album / Tiêu đề bộ sưu tập *</label>
+                    <input id="title" type="text" name="title" class="form-control" placeholder="Ví dụ: Kỷ yếu 2026, Mùa thu Hà Nội..." required autofocus>
                 </div>
-            </div>
+                <div class="mb-3">
+                    <label class="form-label" for="description">Mô tả album</label>
+                    <textarea id="description" name="description" class="form-control" rows="3" placeholder="Ghi chú về album, địa điểm hoặc thông điệp..."></textarea>
+                </div>
+                <div class="mb-4 form-check form-switch p-0 ps-5">
+                    <input type="checkbox" name="is_public" class="form-check-input" id="is_public" checked>
+                    <label class="form-check-label text-white fw-semibold" for="is_public">Album Công khai</label>
+                    <div class="form-text text-muted small">Bật để cho phép mọi người xem trong thư viện. Tắt nếu muốn đặt riêng tư (chỉ bạn hoặc người có liên kết chia sẻ xem được).</div>
+                </div>
+                <div class="d-flex justify-content-end gap-2 pt-3 border-top border-secondary border-opacity-25">
+                    <a href="/albums" class="btn btn-secondary">Hủy bỏ</a>
+                    <button type="submit" class="btn btn-primary px-4">+ Tạo Album</button>
+                </div>
+            </form>
         </div>
-    </div>
-    <footer class="bg-dark text-center text-white py-3 mt-5">
-        <div class="container">
-            <p class="mb-0">&copy; <%= new Date().getFullYear() %> Image Gallery.</p>
-        </div>
-    </footer>
-    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    </main>
+
+    <%- include('../partials/footer') %>
 </body>
 </html>

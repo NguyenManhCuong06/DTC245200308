@@ -1,56 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %> - Image Gallery</title>
-    <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/css/style.css">
+    <%- include('../partials/head', { title }) %>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="/">Gallery</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link active" href="/albums">Albums</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/photos">Photos</a></li>
-                </ul>
-                <ul class="navbar-nav">
-                    <% if (user && user.role === 'admin') { %><li class="nav-item"><a class="nav-link" href="/admin">Admin</a></li><% } %>
-                    <% if (user) { %>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                <%= user.username %>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="/logout">Logout</a></li>
-                            </ul>
-                        </li>
-                    <% } else { %>
-                        <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
-                    <% } %>
-                </ul>
-            </div>
-        </div>
-    </nav>
-    <div class="container mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1><%= album.title %></h1>
+    <%- include('../partials/navbar', { user }) %>
+
+    <main class="container-fluid px-3 px-lg-4 my-4">
+        <!-- Album Header -->
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 pb-3 mb-4 border-bottom border-secondary border-opacity-25">
             <div>
-                <a href="/albums" class="btn btn-secondary">Back to Albums</a>
-                <% if (user && album.user_id == user.id) { %>
-                    <a href="/albums/<%= album.id %>/edit" class="btn btn-outline-secondary ms-2">Edit Album</a>
-                    <form action="/albums/<%= album.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Delete this album?');">
-                        <button type="submit" class="btn btn-outline-danger ms-2">Delete Album</button>
-                    </form>
-                    <a href="/photos/upload?album_id=<%= album.id %>" class="btn btn-primary ms-2">Add Photos</a>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1 small text-muted font-monospace">
+                        <li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Lumina</a></li>
+                        <li class="breadcrumb-item"><a href="/albums" class="text-decoration-none text-muted">Albums</a></li>
+                        <li class="breadcrumb-item active text-primary" aria-current="page"><%= album.title %></li>
+                    </ol>
+                </nav>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <h1 class="h3 fw-bold mb-0 text-white"><%= album.title %></h1>
+                    <% if (album.is_public) { %>
+                        <span class="badge-public">Công khai</span>
+                    <% } else { %>
+                        <span class="badge-private">Riêng tư</span>
+                    <% } %>
+                </div>
+                <p class="text-muted small mb-0 font-monospace">
+                    Tạo bởi <strong class="text-white"><%= album.username %></strong> • <%= new Date(album.created_at).toLocaleDateString() %> • <%= photos ? photos.length : 0 %> ảnh
+                </p>
+            </div>
+
+            <!-- Toolbar Actions -->
+            <div class="d-flex flex-wrap gap-2">
+                <% if (photos && photos.length > 0) { %>
+                    <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1" data-start-slideshow data-album-title="<%= album.title %>">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        <span>Trình chiếu Cinema</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" id="batchDownloadBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span>Tải toàn bộ album</span>
+                    </button>
                 <% } %>
+                <% if (user && (album.user_id == user.id || user.role === 'admin')) { %>
+                    <a href="/photos/upload?album_id=<%= album.id %>" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        <span>+ Thêm ảnh</span>
+                    </a>
+                    <a href="/albums/<%= album.id %>/edit" class="btn btn-secondary btn-sm">Sửa album</a>
+                    <form action="/albums/<%= album.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa album này?');">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">Xóa album</button>
+                    </form>
+                <% } %>
+                <a href="/albums" class="btn btn-secondary btn-sm">Quay lại</a>
             </div>
         </div>
+
+        <% (messages?.error || []).forEach(function(message) { %>
+            <div class="alert alert-danger"><%= message %></div>
+        <% }); %>
+        <% (messages?.success || []).forEach(function(message) { %>
+            <div class="alert alert-success"><%= message %></div>
+        <% }); %>
 
         <% if (album.description) { %>
             <div class="alert alert-info mb-4">
@@ -58,90 +78,144 @@
             </div>
         <% } %>
 
-        <p class="text-muted">Created by <%= album.username %> on <%= new Date(album.created_at).toLocaleDateString() %></p>
-
-        <% (messages?.error || []).forEach(function(message) { %><div class="alert alert-danger"><%= message %></div><% }); %>
-        <% (messages?.success || []).forEach(function(message) { %><div class="alert alert-success"><%= message %></div><% }); %>
-        <% if (user && album.user_id == user.id) { %>
-            <section class="card mb-4" aria-labelledby="share-links-title">
-                <div class="card-body">
-                    <h2 id="share-links-title" class="h5">Guest share links</h2>
-                    <form action="/albums/<%= album.id %>/shares" method="POST" class="d-flex flex-wrap align-items-end gap-2 mb-3">
-                        <label for="share-expiry" class="form-label mb-0">Expires in</label>
-                        <select id="share-expiry" name="expires_in_days" class="form-select w-auto">
-                            <option value="1">1 day</option>
-                            <option value="7" selected>7 days</option>
-                            <option value="30">30 days</option>
+        <!-- Shared Links Management (Stitch Shared Links Pattern) -->
+        <% if (user && (album.user_id == user.id || user.role === 'admin')) { %>
+            <section class="card mb-4" aria-labelledby="share-links-heading">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <h2 id="share-links-heading" class="h6 mb-0 text-white fw-semibold d-flex align-items-center gap-2">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <circle cx="6" cy="12" r="3"></circle>
+                            <circle cx="18" cy="19" r="3"></circle>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                        </svg>
+                        <span>Liên kết chia sẻ khách (Shared Links &amp; Public Access)</span>
+                    </h2>
+                    <form action="/albums/<%= album.id %>/shares" method="POST" class="d-flex align-items-center gap-2">
+                        <label for="share-expiry" class="small text-muted mb-0">Thời hạn:</label>
+                        <select id="share-expiry" name="expires_in_days" class="form-select form-select-sm w-auto">
+                            <option value="1">1 ngày</option>
+                            <option value="7" selected>7 ngày</option>
+                            <option value="30">30 ngày</option>
                         </select>
-                        <button type="submit" class="btn btn-success">Create share link</button>
+                        <button type="submit" class="btn btn-sm btn-primary">+ Tạo link mới</button>
                     </form>
-                    <% if (shareLinks && shareLinks.length) { %>
-                        <ul class="list-unstyled mb-0">
+                </div>
+                <div class="card-body p-3">
+                    <% if (typeof shareLinks !== 'undefined' && shareLinks && shareLinks.length > 0) { %>
+                        <div class="list-group list-group-flush">
                             <% shareLinks.forEach(function(link) { %>
-                                <li class="border-top py-2">
-                                    <% if (!link.revoked_at && new Date(link.expires_at) > new Date()) { %>
-                                        <a href="/share/<%= link.token %>" target="_blank" rel="noopener">Open guest link</a>
-                                        <span class="text-muted">Expires <%= new Date(link.expires_at).toLocaleString() %></span>
-                                        <form action="/albums/<%= album.id %>/shares/<%= link.id %>/revoke" method="POST" class="d-inline" onsubmit="return confirm('Revoke this share link?');">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
-                                        </form>
-                                    <% } else { %>
-                                        <span class="text-muted">Inactive share link</span>
-                                    <% } %>
-                                </li>
+                                <div class="list-group-item bg-transparent text-white px-0 py-2 d-flex flex-wrap justify-content-between align-items-center gap-2 border-secondary border-opacity-25">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <% if (!link.revoked_at && new Date(link.expires_at) > new Date()) { %>
+                                            <span class="badge bg-success bg-opacity-25 text-success font-monospace" style="font-size: 0.72rem;">Đang hoạt động</span>
+                                            <a href="/share/<%= link.token %>" target="_blank" class="text-info font-monospace text-decoration-none small">
+                                                /share/<%= link.token.slice(0, 16) %>...
+                                            </a>
+                                            <span class="text-muted small">• Hết hạn: <%= new Date(link.expires_at).toLocaleString() %></span>
+                                        <% } else { %>
+                                            <span class="badge bg-secondary text-muted font-monospace" style="font-size: 0.72rem;">Đã thu hồi / Hết hạn</span>
+                                            <span class="text-muted font-monospace small">/share/<%= link.token.slice(0, 12) %>...</span>
+                                        <% } %>
+                                    </div>
+                                    <div>
+                                        <% if (!link.revoked_at && new Date(link.expires_at) > new Date()) { %>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 me-1" style="font-size: 0.75rem;" onclick="navigator.clipboard.writeText(window.location.origin + '/share/<%= link.token %>'); alert('Đã sao chép link chia sẻ vào clipboard!');">
+                                                Sao chép link
+                                            </button>
+                                            <form action="/albums/<%= album.id %>/shares/<%= link.id %>/revoke" method="POST" class="d-inline" onsubmit="return confirm('Thu hồi quyền truy cập của liên kết này?');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.75rem;">Thu hồi</button>
+                                            </form>
+                                        <% } %>
+                                    </div>
+                                </div>
                             <% }); %>
-                        </ul>
+                        </div>
                     <% } else { %>
-                        <p class="text-muted mb-0">No share links yet.</p>
+                        <p class="text-muted mb-0 small">Chưa có liên kết chia sẻ nào được tạo cho album này.</p>
                     <% } %>
                 </div>
             </section>
         <% } %>
 
+        <!-- Photos in Album Grid -->
         <% if (photos && photos.length > 0) { %>
-            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 mt-4">
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 g-4 mb-4">
                 <% photos.forEach(function(photo) { %>
                     <div class="col">
                         <div class="card h-100">
-                            <button type="button" class="lightbox-trigger" data-full="<%= photo.originalPath %>" aria-label="View <%= photo.title %>">
-                                <img src="<%= photo.path %>" class="card-img-top" alt="<%= photo.title %>" loading="lazy">
-                            </button>
-                            <div class="card-body">
-                                <h5 class="card-title"><%= photo.title %></h5>
+                            <!-- Image container with Cinema Slideshow and Batch Download triggers -->
+                            <div class="position-relative overflow-hidden" style="height: 220px;">
+                                <a href="/photos/<%= photo.id %>" class="d-block w-100 h-100">
+                                    <img src="<%= photo.path %>" 
+                                         class="card-img-top w-100 h-100" 
+                                         alt="<%= photo.title %>" 
+                                         loading="lazy"
+                                         data-cinema-slide="<%= photo.originalPath || photo.path %>"
+                                         data-cinema-title="<%= photo.title %>"
+                                         data-cinema-download="<%= photo.originalPath || photo.path %>"
+                                         data-download-url="<%= photo.originalPath || photo.path %>"
+                                         data-filename="<%= photo.filename %>">
+                                </a>
+                                <div class="position-absolute top-0 end-0 m-2">
+                                    <% if (photo.is_public) { %>
+                                        <span class="badge-public">Công khai</span>
+                                    <% } else { %>
+                                        <span class="badge-private">Riêng tư</span>
+                                    <% } %>
+                                </div>
+                            </div>
+
+                            <div class="card-body p-3 d-flex flex-column">
+                                <h2 class="card-title h6 mb-1 text-truncate">
+                                    <a href="/photos/<%= photo.id %>" class="text-white text-decoration-none"><%= photo.title %></a>
+                                </h2>
                                 <% if (photo.tags && photo.tags.length) { %>
-                                    <div class="photo-tags">
+                                    <div class="d-flex flex-wrap gap-1 mb-2">
                                         <% photo.tags.forEach(function(tag) { %>
-                                            <a href="/photos?tag=<%= encodeURIComponent(tag) %>" class="badge bg-secondary">#<%= tag %></a>
+                                            <a href="/photos?tag=<%= encodeURIComponent(tag) %>" class="badge bg-secondary text-decoration-none" style="font-size: 0.7rem;">#<%= tag %></a>
                                         <% }); %>
                                     </div>
                                 <% } %>
-                            </div>
-                            <div class="card-footer bg-transparent">
-                                <a href="/photos/<%= photo.id %>" class="btn btn-sm btn-outline-primary">View</a>
-                                <% if (user && album.user_id == user.id) { %>
-                                    <a href="/photos/<%= photo.id %>/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                    <form action="/photos/<%= photo.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Delete this photo?');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                                    </form>
-                                <% } %>
-                                <% if (photo.is_public) { %>
-                                    <a href="/photos/<%= photo.id %>/share" class="btn btn-sm btn-outline-success" target="_blank">Share</a>
-                                <% } %>
+
+                                <div class="mt-auto pt-2 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+                                    <a href="/photos/<%= photo.id %>" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.8rem;">Xem chi tiết</a>
+                                    <div class="d-flex gap-1">
+                                        <% if (user && (album.user_id == user.id || user.role === 'admin')) { %>
+                                            <a href="/photos/<%= photo.id %>/edit" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.8rem;">Sửa</a>
+                                            <form action="/photos/<%= photo.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Xóa ảnh này khỏi album?');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.8rem;">Xóa</button>
+                                            </form>
+                                        <% } %>
+                                        <a href="<%= photo.originalPath || photo.path %>" class="btn btn-sm btn-secondary py-0 px-2" style="font-size: 0.8rem;" download title="Tải ảnh">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                <polyline points="7 10 12 15 17 10"></polyline>
+                                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 <% }); %>
             </div>
         <% } else { %>
-            <div class="alert alert-info mt-4">No photos in this album yet.</div>
+            <div class="card p-5 text-center">
+                <p class="text-muted mb-3">Chưa có bức ảnh nào trong album này.</p>
+                <% if (user && (album.user_id == user.id || user.role === 'admin')) { %>
+                    <div>
+                        <a href="/photos/upload?album_id=<%= album.id %>" class="btn btn-primary btn-sm">+ Thêm ảnh vào album ngay</a>
+                    </div>
+                <% } %>
+            </div>
         <% } %>
-    </div>
-    <footer class="bg-dark text-center text-white py-3 mt-5">
-        <div class="container">
-            <p class="mb-0">&copy; <%= new Date().getFullYear() %> Image Gallery.</p>
-        </div>
-    </footer>
-    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    </main>
+
+    <%- include('../partials/slideshow') %>
+    <%- include('../partials/footer') %>
     <script src="/js/gallery.js" defer></script>
 </body>
 </html>

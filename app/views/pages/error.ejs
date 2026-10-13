@@ -1,23 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= status %> - <%= title %></title>
-    <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/css/style.css">
+    <%- include('../partials/head', { title: 'Lỗi - ' + status }) %>
 </head>
-<body>
-    <main class="container my-5">
-        <div class="row justify-content-center">
-            <div class="col-12 col-md-8 col-lg-6">
-                <div class="alert alert-danger" role="alert">
-                    <h1 class="h3"><%= status %> - <%= title %></h1>
-                    <p class="mb-0"><%= message %></p>
-                </div>
-                <a href="/" class="btn btn-primary">Return to gallery</a>
+<body class="d-flex flex-column min-vh-100">
+    <%- include('../partials/navbar', { user: typeof user !== 'undefined' ? user : null }) %>
+
+    <main class="container my-auto py-5 d-flex align-items-center justify-content-center">
+        <div class="card shadow-lg auth-card text-center p-5">
+            <h1 class="display-3 fw-bold text-danger mb-2"><%= status %></h1>
+            <h2 class="h5 text-white mb-2"><%= title %></h2>
+            <p class="text-muted small mb-4"><%= message %></p>
+            <div>
+                <a href="/" class="btn btn-primary px-4">Quay về Trang chủ</a>
             </div>
         </div>
     </main>
+
+    <%- include('../partials/footer') %>
 </body>
 </html>

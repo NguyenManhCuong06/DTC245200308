@@ -1,119 +1,203 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %> - Image Gallery</title>
-    <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/css/style.css">
+    <%- include('../partials/head', { title }) %>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="/">Gallery</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link" href="/albums">Albums</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="/photos">Photos</a></li>
-                </ul>
-                <ul class="navbar-nav">
-                    <% if (user && user.role === 'admin') { %><li class="nav-item"><a class="nav-link" href="/admin">Admin</a></li><% } %>
-                    <% if (user) { %>
-                        <li class="nav-item"><a class="nav-link" href="/photos/upload">Upload</a></li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                <%= user.username %>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="/logout">Logout</a></li>
-                            </ul>
-                        </li>
-                    <% } else { %>
-                        <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
-                    <% } %>
-                </ul>
+    <%- include('../partials/navbar', { user }) %>
+
+    <main class="container-fluid px-3 px-lg-4 my-4">
+        <!-- Top Toolbar & Search -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 pb-3 mb-4 border-bottom border-secondary border-opacity-25">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1 small text-muted font-monospace">
+                        <li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Lumina</a></li>
+                        <li class="breadcrumb-item active text-primary" aria-current="page">Thư viện ảnh</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 fw-bold mb-1 text-white">Thư viện Ảnh / Photo Library</h1>
+                <p class="text-muted mb-0 small">
+                    Tất cả tác phẩm trong hệ thống được quản lý và bảo vệ theo quyền riêng tư.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <% if (photos && photos.length > 0) { %>
+                    <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1" data-start-slideshow data-album-title="Toàn bộ thư viện ảnh">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        <span>Trình chiếu Cinema</span>
+                    </button>
+                <% } %>
+                <a href="/photos/tags" class="btn btn-secondary btn-sm d-inline-flex align-items-center gap-1">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                        <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                    </svg>
+                    <span>Xem theo Thẻ</span>
+                </a>
+                <% if (user) { %>
+                    <a href="/photos/upload" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>Tải ảnh lên</span>
+                    </a>
+                <% } %>
             </div>
         </div>
-    </nav>
-    <div class="container mt-4">
-        <h1 class="mb-4">All Photos</h1>
-        <% (messages?.error || []).forEach(function(message) { %><div class="alert alert-danger"><%= message %></div><% }); %>
-        <% (messages?.success || []).forEach(function(message) { %><div class="alert alert-success"><%= message %></div><% }); %>
-        <form action="/photos" method="GET" class="mb-4 d-flex flex-wrap gap-2">
-            <label for="photo-search" class="visually-hidden">Search photos, tags or albums</label>
-            <input id="photo-search" type="search" name="q" class="form-control search-control" placeholder="Search photo, tag or album" value="<%= searchTerm || '' %>">
-            <label for="tag-filter" class="visually-hidden">Filter by exact tag</label>
-            <input id="tag-filter" type="search" name="tag" class="form-control search-control" placeholder="Exact tag filter" value="<%= activeTag || '' %>">
-            <button type="submit" class="btn btn-outline-primary">Search</button>
-            <% if (activeTag || searchTerm) { %><a href="/photos" class="btn btn-secondary">Clear</a><% } %>
-        </form>
-        <% if (activeTag) { %><p class="text-muted">Tag: <strong><%= activeTag %></strong></p><% } %>
-        
-        <% if (user) { %>
-            <div class="mb-3">
-                <a href="/photos/upload" class="btn btn-primary">Upload New Photo</a>
-            </div>
-        <% } %>
 
+        <% (messages?.error || []).forEach(function(message) { %>
+            <div class="alert alert-danger"><%= message %></div>
+        <% }); %>
+        <% (messages?.success || []).forEach(function(message) { %>
+            <div class="alert alert-success"><%= message %></div>
+        <% }); %>
+
+        <!-- Filter and Search Form -->
+        <div class="card mb-4">
+            <div class="card-body p-3">
+                <form action="/photos" method="GET" class="row g-2 align-items-center">
+                    <div class="col-md-6 col-lg-5">
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-muted">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                            </span>
+                            <input type="search" name="q" class="form-control" placeholder="Tìm tên ảnh, album hoặc thẻ tag..." value="<%= searchTerm || '' %>">
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-lg-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-muted">#</span>
+                            <input type="search" name="tag" class="form-control" placeholder="Lọc theo thẻ tag chính xác..." value="<%= activeTag || '' %>">
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-lg-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">Lọc</button>
+                        <% if (activeTag || searchTerm) { %>
+                            <a href="/photos" class="btn btn-secondary">Đặt lại</a>
+                        <% } %>
+                    </div>
+                </form>
+                <% if (activeTag) { %>
+                    <div class="mt-2 pt-2 border-top border-secondary border-opacity-25 small text-muted">
+                        Đang lọc theo thẻ: <span class="badge-tag">#<%= activeTag %></span>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- Photos Grid -->
         <% if (photos && photos.length > 0) { %>
-            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 g-4 mb-4">
                 <% photos.forEach(function(photo) { %>
                     <div class="col">
                         <div class="card h-100">
-                            <button type="button" class="lightbox-trigger" data-full="/photos/<%= photo.id %>/original" aria-label="View <%= photo.title %>">
-                                <img src="<%= photo.path %>" class="card-img-top" alt="<%= photo.title %>" loading="lazy">
-                            </button>
-                            <div class="card-body">
-                                <h5 class="card-title"><%= photo.title %></h5>
-                                <p class="card-text text-muted small"><%= photo.album_title || 'Uncategorized' %></p>
-                                <% if (photo.tag_names) { %>
-                                    <div class="photo-tags">
-                                        <% photo.tag_names.split(',').forEach(function(tag) { %>
-                                            <a href="/photos?tag=<%= encodeURIComponent(tag) %>" class="badge bg-secondary">#<%= tag %></a>
+                            <!-- Image container with Cinema Slideshow Hook -->
+                            <div class="position-relative overflow-hidden" style="height: 220px;">
+                                <a href="/photos/<%= photo.id %>" class="d-block w-100 h-100">
+                                    <img src="<%= photo.thumbnailPath %>" 
+                                         class="card-img-top w-100 h-100" 
+                                         alt="<%= photo.title %>" 
+                                         loading="lazy"
+                                         data-cinema-slide="<%= photo.path %>"
+                                         data-cinema-title="<%= photo.title %>"
+                                         data-cinema-download="<%= photo.path %>">
+                                </a>
+                                <div class="position-absolute top-0 end-0 m-2">
+                                    <% if (photo.is_public) { %>
+                                        <span class="badge-public">Công khai</span>
+                                    <% } else { %>
+                                        <span class="badge-private">Riêng tư</span>
+                                    <% } %>
+                                </div>
+                            </div>
+
+                            <div class="card-body p-3 d-flex flex-column">
+                                <h2 class="card-title h6 mb-1 text-truncate">
+                                    <a href="/photos/<%= photo.id %>" class="text-white text-decoration-none"><%= photo.title %></a>
+                                </h2>
+                                <p class="card-text text-muted small mb-2 text-truncate">
+                                    <%= photo.album_title ? photo.album_title : 'Chưa gắn album' %> • <%= photo.username %>
+                                </p>
+
+                                <!-- Tag badges -->
+                                <% if (photo.tags && photo.tags.length) { %>
+                                    <div class="d-flex flex-wrap gap-1 mb-3">
+                                        <% photo.tags.forEach(function(tag) { %>
+                                            <a href="/photos?tag=<%= encodeURIComponent(tag) %>" class="badge bg-secondary text-decoration-none" style="font-size: 0.7rem;">#<%= tag %></a>
                                         <% }); %>
                                     </div>
                                 <% } %>
-                            </div>
-                            <div class="card-footer bg-transparent">
-                                <a href="/photos/<%= photo.id %>" class="btn btn-sm btn-outline-primary">View</a>
-                                <% if (user && photo.user_id == user.id) { %>
-                                    <a href="/photos/<%= photo.id %>/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                    <form action="/photos/<%= photo.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Delete this photo?');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                                    </form>
-                                <% } %>
-                                <% if (photo.is_public) { %>
-                                    <a href="/photos/<%= photo.id %>/share" class="btn btn-sm btn-outline-success" target="_blank">Share</a>
-                                <% } %>
+
+                                <div class="mt-auto pt-2 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+                                    <a href="/photos/<%= photo.id %>" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.8rem;">Chi tiết</a>
+                                    <div class="d-flex gap-1">
+                                        <% if (user && (photo.user_id == user.id || user.role === 'admin')) { %>
+                                            <a href="/photos/<%= photo.id %>/edit" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.8rem;">Sửa</a>
+                                            <form action="/photos/<%= photo.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa ảnh này?');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.8rem;">Xóa</button>
+                                            </form>
+                                        <% } %>
+                                        <a href="<%= photo.path %>" class="btn btn-sm btn-secondary py-0 px-2" style="font-size: 0.8rem;" download title="Tải ảnh">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                <polyline points="7 10 12 15 17 10"></polyline>
+                                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 <% }); %>
-        </div>
+            </div>
+
+            <!-- Pagination -->
+            <% if (totalPages > 1) { %>
+                <nav aria-label="Pagination" class="d-flex justify-content-center mt-4">
+                    <ul class="pagination pagination-sm">
+                        <% if (previousUrl) { %>
+                            <li class="page-item"><a class="page-link bg-dark border-secondary text-white" href="<%= previousUrl %>">&laquo; Trang trước</a></li>
+                        <% } else { %>
+                            <li class="page-item disabled"><span class="page-link bg-dark border-secondary text-muted">&laquo; Trang trước</span></li>
+                        <% } %>
+
+                        <li class="page-item active">
+                            <span class="page-link bg-primary border-primary"><%= currentPage %> / <%= totalPages %></span>
+                        </li>
+
+                        <% if (nextUrl) { %>
+                            <li class="page-item"><a class="page-link bg-dark border-secondary text-white" href="<%= nextUrl %>">Trang tiếp &raquo;</a></li>
+                        <% } else { %>
+                            <li class="page-item disabled"><span class="page-link bg-dark border-secondary text-muted">Trang tiếp &raquo;</span></li>
+                        <% } %>
+                    </ul>
+                </nav>
+            <% } %>
+
         <% } else { %>
-            <div class="alert alert-info"><%= activeTag || searchTerm ? 'No photos match these filters.' : 'No photos found. Upload one to get started!' %></div>
+            <div class="card p-5 text-center">
+                <p class="text-muted mb-3">Không tìm thấy ảnh nào phù hợp với bộ lọc hiện tại.</p>
+                <div>
+                    <a href="/photos" class="btn btn-secondary btn-sm">Xem tất cả ảnh</a>
+                    <% if (user) { %>
+                        <a href="/photos/upload" class="btn btn-primary btn-sm ms-2">Tải ảnh mới</a>
+                    <% } %>
+                </div>
+            </div>
         <% } %>
-        <% if (totalPages > 1) { %>
-            <nav class="d-flex justify-content-between align-items-center my-4" aria-label="Photo pages">
-                <% if (previousUrl) { %><a class="btn btn-outline-primary" href="<%= previousUrl %>">Previous</a><% } else { %><span></span><% } %>
-                <span>Page <%= currentPage %> of <%= totalPages %> (<%= totalCount %> photos)</span>
-                <% if (nextUrl) { %><a class="btn btn-outline-primary" href="<%= nextUrl %>">Next</a><% } else { %><span></span><% } %>
-            </nav>
-        <% } %>
-    </div>
-    <dialog id="photo-lightbox" class="photo-lightbox">
-        <button type="button" class="btn btn-secondary lightbox-close" aria-label="Close">Close</button>
-        <img alt="">
-    </dialog>
-    <footer class="bg-dark text-center text-white py-3 mt-5">
-        <div class="container">
-            <p class="mb-0">&copy; <%= new Date().getFullYear() %> Image Gallery.</p>
-        </div>
-    </footer>
-    <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    </main>
+
+    <%- include('../partials/slideshow') %>
+    <%- include('../partials/footer') %>
     <script src="/js/gallery.js" defer></script>
 </body>
 </html>

@@ -462,6 +462,50 @@ const photoController = {
       console.error('Unable to create photo share URL:', error.message);
       res.status(500).json({ error: 'Unable to create share URL' });
     }
+  },
+
+  getTagsOverview: async (req, res) => {
+    try {
+      const userId = req.user ? req.user.id : -1;
+      const [tags] = await db.promise().query(`
+        SELECT t.id, t.name, COUNT(pt.photo_id) as photo_count
+        FROM tags t
+        LEFT JOIN photo_tags pt ON pt.tag_id = t.id
+        LEFT JOIN photos p ON p.id = pt.photo_id AND (p.is_public = TRUE OR p.user_id = ? OR ? = 'admin')
+        GROUP BY t.id, t.name
+        ORDER BY photo_count DESC, t.name ASC
+      `, [userId, req.user ? req.user.role : '']);
+
+      const [recentPhotos] = await db.promise().query(`
+        SELECT p.*, u.username, a.title as album_title,
+               (SELECT GROUP_CONCAT(t2.name SEPARATOR ',') FROM photo_tags pt2 JOIN tags t2 ON t2.id = pt2.tag_id WHERE pt2.photo_id = p.id) as tag_names
+        FROM photos p
+        JOIN users u ON p.user_id = u.id
+        LEFT JOIN albums a ON a.id = p.album_id
+        JOIN photo_tags pt ON pt.photo_id = p.id
+        WHERE p.is_public = TRUE OR p.user_id = ? OR ? = 'admin'
+        GROUP BY p.id
+        ORDER BY p.created_at DESC
+        LIMIT 12
+      `, [userId, req.user ? req.user.role : '']);
+
+      recentPhotos.forEach(p => {
+        p.path = `/photos/${p.id}/original`;
+        p.thumbnailPath = `/photos/${p.id}/thumbnail`;
+        p.tags = p.tag_names ? p.tag_names.split(',') : [];
+      });
+
+      res.render('pages/tags', {
+        title: 'Phân loại ảnh & Quản lý Thẻ',
+        tags,
+        recentPhotos,
+        user: req.user,
+        messages: { error: req.flash('error'), success: req.flash('success') }
+      });
+    } catch (error) {
+      console.error('Unable to load tags:', error.message);
+      res.status(500).send('Unable to load tags overview');
+    }
   }
 };
 

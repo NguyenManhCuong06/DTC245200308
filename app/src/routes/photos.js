@@ -4,6 +4,7 @@ const photoController = require('../controllers/photoController');
 const { requireAuthentication } = require('../middleware/auth');
 
 router.get('/', photoController.getAllPhotos);
+router.get('/tags', photoController.getTagsOverview);
 router.get('/upload', requireAuthentication, photoController.renderUpload);
 router.post('/upload', requireAuthentication, photoController.uploadPhoto);
 router.get('/:id/edit', requireAuthentication, photoController.renderEditPhoto);
