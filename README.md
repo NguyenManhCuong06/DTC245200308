@@ -145,8 +145,8 @@ thay đổi theo lượng request và thời gian lưu log.
 
 - Promtail và cAdvisor chạy root. Promtail mount `/var/run/docker.sock` với `:ro`,
   nhưng quyền đọc socket không giới hạn các lệnh Docker API mà client có thể gửi.
-  cAdvisor mount cả `/var/run:/var/run:rw`, vì vậy Docker socket trong mount này
-  không được bảo vệ ở chế độ chỉ đọc.
+  cAdvisor cũng mount `/var/run` chỉ đọc. Các mount read-only không ngăn client
+  gửi lệnh Docker API có tác dụng ghi; đây là rủi ro đã chấp nhận.
 - Docker socket chỉ được mount ở chế độ `:ro`; điều này giới hạn ghi file qua
   bind mount nhưng không hạn chế các lệnh ghi mà client có thể gửi qua Docker
   API. Đây là rủi ro đã chấp nhận khi dùng Docker service discovery, không phải

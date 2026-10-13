@@ -4,7 +4,7 @@
 
 ### Loki và Promtail
 - Docker service discovery đọc JSON container logs từ Docker socket, gán nhãn container/service/stream và bao gồm access/error stdout/stderr của Nginx.
-- Đường dẫn container log được dựng từ Docker container ID; file JSON ứng dụng tại `/app/src/logs/*.log` được parse riêng để tránh chạy Docker pipeline lên JSON ứng dụng.
+- Docker service discovery dựng log path từ Docker container ID; trên Docker Desktop WSL 2, Promtail tiếp tục thu container logs sau khi bỏ bind mount `/var/lib/docker/containers`. File JSON ứng dụng tại `/app/src/logs/*.log` được parse riêng.
 - Thêm datasource UID ổn định và dashboard Grafana **Gallery Logs** với log containers, lọc lỗi/status 4xx/5xx và `count_over_time`.
 - Kiểm tra thật bằng Loki API sau clean rebuild, request đăng nhập, album, upload, link chia sẻ, 403 và 404: `{container="web"}` trả 1.000 dòng (giới hạn query), lọc Nginx 404 trả 4 dòng, regex Nginx `error|warn` trả 1 dòng, lọc application HTTP 4xx/5xx trả 104 dòng, và `sum(count_over_time({job="application"}[5m]))` trả giá trị 55.
 
@@ -59,6 +59,8 @@ sum(count_over_time({container="nginx"}[5m]))
 - Đã bỏ mount `/var/lib/docker/containers` khỏi Promtail. Sau recreate, Promtail
   healthy; query container Nginx và lọc 404 có log mới, bốn query LogQL bên trên
   đều cho kết quả dương tính.
+- cAdvisor mount `/var/run` ở chế độ chỉ đọc; sau recreate container healthy và
+  metrics theo nhãn container `web`, `db`, `nginx` còn tồn tại.
 - Docker socket mount của Promtail vẫn `:ro`. Chế độ read-only của mount không
   giới hạn các lệnh ghi được gửi qua Docker API; ghi nhận đây là rủi ro được
   chấp nhận khi dùng docker service discovery, không dùng proxy service.
