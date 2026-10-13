@@ -1,7 +1,16 @@
 # Environment files
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+
+# Sensitive credentials & session data
+cookies*.txt
+*.cookie
+*.cookies
+*.session
+*.token
+credentials/
+secrets/
 
 # Dependencies
 node_modules/
