@@ -59,15 +59,17 @@ bình thường trong môi trường phát triển.
 
 | Thành phần | Địa chỉ | Phạm vi |
 |---|---|---|
-| Gallery | `https://localhost` | Nginx HTTPS, host ports 443/80 |
-| phpMyAdmin | `https://localhost/phpmyadmin/` | Qua Nginx HTTPS; đăng nhập bằng `MYSQL_USER` và `MYSQL_PASSWORD` |
+| Gallery | `https://localhost` | Qua Nginx HTTPS; host ports 443/80 publish trên các interface của máy |
+| phpMyAdmin | `http://localhost:8080/` | Cổng riêng chỉ bind `127.0.0.1`; đăng nhập bằng `MYSQL_USER` và `MYSQL_PASSWORD`; không đi qua Nginx |
 | Grafana | `http://localhost:3000` | Chỉ bind loopback; user `admin`, mật khẩu `GRAFANA_ADMIN_PASSWORD` |
 | Prometheus | `http://localhost:9090` | Chỉ bind loopback |
 | Loki API | `http://localhost:3100` | Chỉ bind loopback |
 | Exporter endpoints | `localhost:9100`, `:9104`, `:9113` | Chỉ bind loopback |
 
-Từ máy khác, các cổng monitoring không được publish ra LAN; dùng SSH port
-forwarding tới `127.0.0.1` trên máy host. Không mở trực tiếp MySQL ra host.
+Gallery đi qua Nginx và có thể truy cập từ LAN nếu firewall của host cho phép.
+phpMyAdmin, các cổng monitoring và exporter chỉ bind `127.0.0.1`, nên chỉ truy
+cập được từ chính máy host; không dùng địa chỉ LAN cố định vì nó có thể đổi
+theo DHCP. Không mở trực tiếp MySQL ra host.
 
 ## Monitoring
 
@@ -92,32 +94,39 @@ Có thể chạy các truy vấn trong Grafana → Explore → Loki:
 
 ```logql
 {container="web"}
-{container="nginx"} |= " 404 "
-{container="nginx"} |~ "(?i)error|warn"
 {job="application"} | json | status_code=~"4..|5.."
-sum(count_over_time({job="application"}[5m]))
+{job="application"} | json | level=~"(?i)(error|warn)"
+sum(count_over_time({container="web"}[5m]))
 ```
 
 Các query chỉ trả log trong khoảng thời gian đang chọn và sau khi có request/log
 tương ứng.
 
-Đã thêm dashboard **Gallery Logs** trong Grafana với truy vấn container/Nginx,
-lọc log ứng dụng mức error/warn hoặc status 4xx/5xx và thống kê số dòng 5 phút.
+Dashboard **Gallery Logs** trong Grafana có truy vấn container/Nginx, lọc HTTP
+4xx/5xx, mức error/warn và thống kê `count_over_time`.
 
-Đã chạy request đăng ký, đăng nhập, tạo/mở album, `/gd3-not-a-route` (404) và
-`/admin` bằng tài khoản user thường (403), sau đó gọi Loki
-`/loki/api/v1/query_range` (09-10-2026, khoảng 15 phút gần nhất):
+Kiểm chứng trực tiếp qua Loki API trên Windows host ngày 13-10-2026 sau khi gửi
+request 404 tới `/error` và `/gd3-promtail-no-bind-20261013`.
+`query_range` dùng khoảng `2026-10-13T14:55:23Z` đến
+`2026-10-13T15:00:23Z`, giới hạn 1000 dòng. IP trong mẫu đã được che:
 
-| LogQL | Kết quả thực |
-|---|---:|
-| `{container="web"}` | 1,000 dòng (đạt giới hạn `limit=1000` của truy vấn) |
-| `{container="nginx"} \|= " 404 "` | 4 dòng |
-| `{container="nginx"} \|~ "(?i)error\|warn"` | 1 dòng |
-| `{job="application"} \| json \| status_code=~"4..|5.."` | 104 dòng |
-| `sum(count_over_time({job="application"}[5m]))` | 1 sample, giá trị 55 |
+```logql
+# 35 dòng. Mẫu: Nginx notice, start worker process
+{container="nginx"}
 
-Các số liệu là snapshot tại thời điểm kiểm tra; chúng phụ thuộc thời gian lưu
-trữ log và lượng request.
+# 3 dòng. Mẫu: GET /gd3-promtail-no-bind-20261013, status_code=404
+{container="nginx"} |= " 404 "
+
+# 3 dòng. Mẫu: application request GET /error, status_code=404
+{job="application"} |~ "(?i)(error|warn)"
+
+# 1 sample, giá trị 35; cửa sổ count_over_time là 5 phút
+sum(count_over_time({container="nginx"}[5m]))
+```
+
+Truy vấn regex là lọc văn bản log: mẫu hiện tại khớp chuỗi `/error` trong URL,
+không có nghĩa sự kiện được ghi ở severity `error`. Các số dòng là snapshot và
+thay đổi theo lượng request và thời gian lưu log.
 
 ## Hardening trong cấu hình
 
@@ -130,9 +139,33 @@ trữ log và lượng request.
 - Nginx có HTTPS self-signed, HTTP→HTTPS, HSTS, security headers, giới hạn request body 105 MiB và rate limit riêng cho `/login` và `/register` (5 request/phút + burst 5).
 - Loki, Promtail và Nginx exporter dùng static HTTP readiness probe do image upstream không có shell/curl; các probe kiểm tra `/ready` hoặc `/metrics`.
 - Web chỉ khởi động sau healthcheck MySQL qua TCP loopback (không chỉ kiểm tra Unix socket), tránh đánh dấu DB sẵn sàng trước khi cổng ứng dụng chấp nhận kết nối.
-- Promtail và cAdvisor cần root: Promtail để đọc Docker socket/JSON logs; cAdvisor để thu metrics từ filesystem và socket của host. MySQL entrypoint khởi tạo dưới root rồi daemon chạy UID 999; phpMyAdmin Apache master chạy root để bind cổng 80, worker chạy `www-data`.
-- `express-session` dùng MemoryStore mặc định; phiên đăng nhập không tồn tại sau khi web restart. `node-exporter` quan sát máy ảo Linux WSL 2, không phải toàn bộ tài nguyên Windows host.
 - Các image base và custom image đều được gắn version cụ thể; Compose đặt giới hạn CPU/RAM và healthcheck cho toàn bộ service.
+
+### Giới hạn bảo mật đã biết
+
+- Promtail và cAdvisor chạy root. Promtail mount `/var/run/docker.sock` với `:ro`,
+  nhưng quyền đọc socket không giới hạn các lệnh Docker API mà client có thể gửi.
+  cAdvisor mount cả `/var/run:/var/run:rw`, vì vậy Docker socket trong mount này
+  không được bảo vệ ở chế độ chỉ đọc.
+- Docker socket chỉ được mount ở chế độ `:ro`; điều này giới hạn ghi file qua
+  bind mount nhưng không hạn chế các lệnh ghi mà client có thể gửi qua Docker
+  API. Đây là rủi ro đã chấp nhận khi dùng Docker service discovery, không phải
+  sandbox bảo mật cho Docker daemon.
+- Promtail dùng `docker_sd_configs` và đã kiểm tra thu được log container khi
+  bỏ bind mount `/var/lib/docker/containers`; ứng dụng vẫn có scrape file log
+  riêng tại `/app/src/logs`. Cấu hình này đã chạy trên Docker Desktop WSL 2;
+  cần kiểm tra lại trên Linux Engine khác trước khi khẳng định tương thích.
+- cAdvisor mount `/var/run` ở chế độ chỉ đọc. Sau khi recreate, container healthy
+  và Prometheus vẫn ghi nhận metrics với nhãn `name` là `web`, `db`, `nginx`.
+- `gallery_exporter` có `SELECT`, `PROCESS` và `REPLICATION CLIENT` trên `*.*`,
+  không có quyền ghi. Đây là tập quyền đọc/giám sát được tài liệu mysqld_exporter
+  yêu cầu; `SELECT` áp dụng toàn cục do exporter đọc các bảng trạng thái hệ thống,
+  không chỉ schema Gallery.
+- Grafana giữ root filesystem writable do plugin bundled cần ghi lúc khởi động.
+  phpMyAdmin Apache master chạy root, worker chạy `www-data`; MySQL entrypoint
+  khởi tạo dưới root rồi daemon chạy UID 999.
+- `express-session` dùng MemoryStore mặc định nên phiên đăng nhập mất khi web
+  restart. `node-exporter` đo máy ảo Linux WSL 2, không đại diện toàn bộ Windows.
 
 Không coi chứng thư self-signed hay mật khẩu phát triển là cấu hình production.
 

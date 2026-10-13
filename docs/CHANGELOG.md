@@ -18,6 +18,53 @@
 - Grafana giữ root filesystem writable có chủ đích: read-only đã làm plugin updater không ghi được thư mục bundled plugins và khiến datasource health trả 404 `plugin.notRegistered`; các capability vẫn được drop và privilege escalation bị cấm.
 - Đã xác minh cấu hình và Docker runtime cho Docker Desktop data ở `D:\Docker\DockerDesktopWSL`; phần kiểm thử trạng thái services sau clean rebuild được ghi trong README.
 
+### Kiểm chứng bổ sung ngày 13-10-2026
+
+- Sau khi gửi request 404 tới `/error` và `/gd3-promtail-no-bind-20261013`,
+  Loki API trả HTTP 200 trong khoảng 5 phút UTC từ `2026-10-13T14:55:23Z` đến
+  `2026-10-13T15:00:23Z`; range query giới hạn 1000 dòng. IP trong mẫu đã che.
+
+```logql
+# 35 dòng; mẫu Nginx notice, start worker process
+{container="nginx"}
+
+# 3 dòng; mẫu GET /gd3-promtail-no-bind-20261013, status 404
+{container="nginx"} |= " 404 "
+
+# 3 dòng; mẫu application GET /error, status 404
+{job="application"} |~ "(?i)(error|warn)"
+
+# 1 sample, giá trị 35; cửa sổ count_over_time là 5 phút
+sum(count_over_time({container="nginx"}[5m]))
+```
+
+- Prometheus API báo 6/6 targets UP. Grafana health trả HTTP 200; datasource
+  Prometheus và Loki đều `OK`, API liệt kê 5 dashboards.
+- Từ Windows host, Gallery, phpMyAdmin, Grafana, Prometheus và Loki API trả HTTP
+  200. phpMyAdmin được chuyển sang `http://localhost:8080/`, bind chỉ
+  `127.0.0.1`; đăng nhập bằng app user và truy vấn `SHOW TABLES` liệt kê sáu
+  bảng trong `gallery_db`. IP LAN bị từ chối ở port 8080. Web trả HTTP 301 trên
+  HTTP và HTTP 200 trên HTTPS qua LAN; route HTTPS `/phpmyadmin/` đã bị gỡ.
+- Grafana, Prometheus, Loki và exporter ports bị từ chối qua IP LAN; MySQL port
+  3306 cũng không nhận kết nối LAN.
+- `SHOW GRANTS` qua phpMyAdmin xác nhận app đăng nhập bằng `app_user`, không phải
+  root; quyền app là `SELECT`, `INSERT`, `UPDATE`, `DELETE` trong schema
+  `gallery_db`. `gallery_exporter` có `SELECT`, `PROCESS`, `REPLICATION CLIENT`
+  trên `*.*`, không có quyền ghi. Giữ quyền SELECT toàn cục theo tập quyền đọc/
+  giám sát được mysqld_exporter tài liệu hóa để thu metrics bảng trạng thái hệ
+  thống, không chỉ dữ liệu `gallery_db`.
+- Đổi mount cAdvisor từ `/var/run:rw` sang `/var/run:ro`; sau recreate cAdvisor
+  healthy, Prometheus scrape UP, và metric CPU/RAM vẫn có nhãn `name=web`, cùng
+  nhãn `db` và `nginx`.
+- Đã bỏ mount `/var/lib/docker/containers` khỏi Promtail. Sau recreate, Promtail
+  healthy; query container Nginx và lọc 404 có log mới, bốn query LogQL bên trên
+  đều cho kết quả dương tính.
+- Docker socket mount của Promtail vẫn `:ro`. Chế độ read-only của mount không
+  giới hạn các lệnh ghi được gửi qua Docker API; ghi nhận đây là rủi ro được
+  chấp nhận khi dùng docker service discovery, không dùng proxy service.
+- Secret scan hai commit chưa push và tag `gd3-log-hardening-ok` không tìm thấy
+  private key hoặc credential literal theo các mẫu quét; không in giá trị nào.
+
 ## Giai đoạn 2
 
 ### Album
