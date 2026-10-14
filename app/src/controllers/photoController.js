@@ -106,7 +106,8 @@ const photoController = {
       const offset = (page - 1) * perPage;
       const [results] = await db.promise().query(query, [...params, perPage, offset]);
       results.forEach(photo => {
-        photo.path = `/photos/${photo.id}/thumbnail`;
+        photo.path = `/photos/${photo.id}/original`;
+        photo.thumbnailPath = `/photos/${photo.id}/thumbnail`;
       });
       res.render('pages/photos', {
         title: 'Photos',

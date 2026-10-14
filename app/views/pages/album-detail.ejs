@@ -148,14 +148,14 @@
                             <!-- Image container with Cinema Slideshow and Batch Download triggers -->
                             <div class="position-relative overflow-hidden" style="height: 220px;">
                                 <a href="/photos/<%= photo.id %>" class="d-block w-100 h-100">
-                                    <img src="<%= photo.path %>" 
+                                    <img src="<%= photo.thumbnailPath %>" 
                                          class="card-img-top w-100 h-100" 
                                          alt="<%= photo.title %>" 
                                          loading="lazy"
-                                         data-cinema-slide="<%= photo.originalPath || photo.path %>"
+                                         data-cinema-slide="<%= photo.originalPath %>"
                                          data-cinema-title="<%= photo.title %>"
-                                         data-cinema-download="<%= photo.originalPath || photo.path %>"
-                                         data-download-url="<%= photo.originalPath || photo.path %>"
+                                         data-cinema-download="<%= photo.originalPath %>"
+                                         data-download-url="<%= photo.originalPath %>"
                                          data-filename="<%= photo.filename %>">
                                 </a>
                                 <div class="position-absolute top-0 end-0 m-2">

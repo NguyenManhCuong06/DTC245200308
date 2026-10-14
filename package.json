@@ -1,7 +1,8 @@
 {
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "mysql2": "^3.24.5"
+    "mysql2": "^3.24.5",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",
