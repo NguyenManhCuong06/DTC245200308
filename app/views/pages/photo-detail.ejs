@@ -1,71 +1,141 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %> - Image Gallery</title>
-    <link rel="stylesheet" href="/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/css/style.css">
+    <%- include('../partials/head', { title }) %>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="/">Gallery</a>
-            <div class="collapse navbar-collapse">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link" href="/albums">Albums</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="/photos">Photos</a></li>
-                </ul>
-                <ul class="navbar-nav">
-                    <% if (user) { %>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                <%= user.username %>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="/logout">Logout</a></li>
-                            </ul>
-                        </li>
-                    <% } else { %>
-                        <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
+    <%- include('../partials/navbar', { user }) %>
+
+    <main class="container-fluid px-3 px-lg-4 my-4">
+        <!-- Breadcrumbs & Navigation -->
+        <div class="d-flex justify-content-between align-items-center pb-3 mb-4 border-bottom border-secondary border-opacity-25">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0 small text-muted font-monospace">
+                    <li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Lumina</a></li>
+                    <li class="breadcrumb-item"><a href="/photos" class="text-decoration-none text-muted">Ảnh</a></li>
+                    <% if (photo.album_id) { %>
+                        <li class="breadcrumb-item"><a href="/albums/<%= photo.album_id %>" class="text-decoration-none text-muted"><%= photo.album_title %></a></li>
                     <% } %>
-                </ul>
+                    <li class="breadcrumb-item active text-primary text-truncate" aria-current="page" style="max-width: 200px;"><%= photo.title %></li>
+                </ol>
+            </nav>
+            <div class="d-flex gap-2">
+                <a href="/photos" class="btn btn-secondary btn-sm">Quay lại thư viện</a>
             </div>
         </div>
-    </nav>
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col-md-8 mx-auto">
-                <div class="card">
-                    <img src="<%= photo.path %>" class="card-img-top" alt="<%= photo.title %>" style="max-height: 500px; object-fit: contain;">
-                    <div class="card-body">
-                        <h1 class="card-title"><%= photo.title %></h1>
-                        <p class="card-text"><%= photo.description || 'No description' %></p>
-                        <p class="text-muted">
-                            <small>Album: <%= photo.album_title || 'Uncategorized' %> | Uploaded by: <%= photo.username %> | <%= new Date(photo.created_at).toLocaleDateString() %></small>
-                        </p>
-                        <div class="d-flex gap-2">
-                            <a href="/photos" class="btn btn-secondary">Back to Photos</a>
-                            <% if (photo.is_public) { %>
-                                <button class="btn btn-success" onclick="copyShareLink()">Copy Share Link</button>
-                            <% } %>
+
+        <% (messages?.error || []).forEach(function(message) { %>
+            <div class="alert alert-danger"><%= message %></div>
+        <% }); %>
+        <% (messages?.success || []).forEach(function(message) { %>
+            <div class="alert alert-success"><%= message %></div>
+        <% }); %>
+
+        <div class="row g-4">
+            <!-- Left Canvas: Large Image Theater -->
+            <div class="col-lg-8">
+                <div class="card p-2 text-center" style="background-color: #060911;">
+                    <a href="<%= photo.path %>" target="_blank" class="d-inline-block w-100">
+                        <img src="<%= photo.path %>" 
+                             class="img-fluid rounded" 
+                             alt="<%= photo.title %>" 
+                             style="max-height: 72vh; object-fit: contain;">
+                    </a>
+                </div>
+            </div>
+
+            <!-- Right Sidebar: EXIF Inspector & Actions -->
+            <div class="col-lg-4">
+                <div class="card p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h1 class="h5 fw-bold text-white mb-0"><%= photo.title %></h1>
+                        <% if (photo.is_public) { %>
+                            <span class="badge-public">Công khai</span>
+                        <% } else { %>
+                            <span class="badge-private">Riêng tư</span>
+                        <% } %>
+                    </div>
+                    <p class="text-muted small mb-3">
+                        <%= photo.description || 'Chưa có mô tả cho tác phẩm này.' %>
+                    </p>
+
+                    <!-- Tags Management Section -->
+                    <div class="mb-3 pt-3 border-top border-secondary border-opacity-25">
+                        <h2 class="h6 text-white mb-2 fw-semibold d-flex align-items-center gap-1">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2">
+                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                            </svg>
+                            <span>Thẻ Tag (<%= (photo.tags || []).length %>)</span>
+                        </h2>
+                        <div class="d-flex flex-wrap gap-1 mb-2">
+                            <% (photo.tags || []).forEach(function(tag) { %>
+                                <span class="badge-tag d-inline-flex align-items-center">
+                                    <a href="/photos?tag=<%= encodeURIComponent(tag.name) %>" class="text-decoration-none text-reset">#<%= tag.name %></a>
+                                    <% if (user && (photo.user_id == user.id || user.role === 'admin')) { %>
+                                        <form action="/photos/<%= photo.id %>/tags/<%= tag.id %>/remove" method="POST" class="d-inline ms-1">
+                                            <button type="submit" class="border-0 bg-transparent text-danger p-0 ms-1 fw-bold" style="font-size: 0.8rem; line-height: 1;" title="Xóa thẻ">&times;</button>
+                                        </form>
+                                    <% } %>
+                                </span>
+                            <% }); %>
                         </div>
+
+                        <% if (user && (photo.user_id == user.id || user.role === 'admin')) { %>
+                            <form action="/photos/<%= photo.id %>/tags" method="POST" class="input-group input-group-sm mt-2">
+                                <span class="input-group-text bg-dark border-secondary text-muted">#</span>
+                                <input name="tag_name" class="form-control" placeholder="Thêm thẻ mới..." maxlength="50" required>
+                                <button type="submit" class="btn btn-outline-primary">+ Thêm</button>
+                            </form>
+                        <% } %>
+                    </div>
+
+                    <!-- Technical Telemetry / EXIF Panel -->
+                    <div class="exif-panel mb-3">
+                        <div class="small fw-semibold text-white mb-2 text-uppercase tracking-wider">Thông số kỹ thuật</div>
+                        <div class="exif-item">
+                            <span class="exif-label">Người tải lên</span>
+                            <span class="exif-value"><%= photo.username %></span>
+                        </div>
+                        <div class="exif-item">
+                            <span class="exif-label">Thuộc Album</span>
+                            <span class="exif-value"><%= photo.album_title ? photo.album_title : 'Ảnh tự do' %></span>
+                        </div>
+                        <div class="exif-item">
+                            <span class="exif-label">Ngày tạo</span>
+                            <span class="exif-value"><%= new Date(photo.created_at).toLocaleString() %></span>
+                        </div>
+                        <div class="exif-item">
+                            <span class="exif-label">Tên file lưu trữ</span>
+                            <span class="exif-value text-truncate" style="max-width: 160px;" title="<%= photo.filename %>"><%= photo.filename %></span>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex flex-column gap-2 pt-2">
+                        <a href="<%= photo.path %>" class="btn btn-primary btn-sm d-flex align-items-center justify-content-center gap-2" download>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            <span>Tải ảnh gốc xuống</span>
+                        </a>
+
+                        <% if (user && (photo.user_id == user.id || user.role === 'admin')) { %>
+                            <div class="d-flex gap-2">
+                                <a href="/photos/<%= photo.id %>/edit" class="btn btn-secondary btn-sm flex-grow-1">Chỉnh sửa thông tin</a>
+                                <form action="/photos/<%= photo.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa ảnh này vĩnh viễn?');">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">Xóa ảnh</button>
+                                </form>
+                            </div>
+                        <% } %>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    <footer class="bg-dark text-center text-white py-3 mt-5">
-        <div class="container">
-            <p class="mb-0">&copy; <%= new Date().getFullYear() %> Image Gallery.</p>
-        </div>
-    </footer>
-    <script>
-        function copyShareLink() {
-            navigator.clipboard.writeText(window.location.href).then(() => {
-                alert('Share link copied to clipboard!');
-            });
-        }
-    </script>
+    </main>
+
+    <%- include('../partials/footer') %>
 </body>
 </html>

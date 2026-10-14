@@ -1,298 +1,183 @@
-# Hệ thống Thư viện Ảnh / Gallery - DevOps Final Project
+# Hệ thống Thư viện Ảnh / Gallery
 
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
-[![Docker Compose](https://img.shields.io/badge/Docker_Compose-v3.8-blue)](https://docs.docker.com/compose/)
-[![Node.js](https://img.shields.io/badge/Node.js-20-green)](https://nodejs.org/)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0-orange)](https://www.mysql.com/)
-[![Prometheus](https://img.shields.io/badge/Prometheus-Monitoring-red)](https://prometheus.io/)
-[![Grafana](https://img.shields.io/badge/Grafana-Dashboard-orange)](https://grafana.com/)
-[![Loki](https://img.shields.io/badge/Loki-Logging-blue)](https://grafana.com/oss/loki/)
+Stack triển khai cho đề 31 bằng Docker Compose: ứng dụng Node.js/Express, MySQL,
+phpMyAdmin, Nginx HTTPS, Prometheus, Grafana, exporters, Loki và Promtail.
 
-## 📋 Mô tả dự án
+## Công nghệ và dịch vụ
 
-Hệ thống Thư viện Ảnh (Gallery) là một ứng dụng web full-stack cho phép người dùng:
-- 📸 **Upload ảnh** - Tải lên ảnh từ thiết bị
-- 📁 **Quản lý Album** - Tạo, chỉnh sửa, xóa album ảnh
-- 🏷️ **Phân loại ảnh** - Tổ chức ảnh theo album
-- 🔗 **Chia sẻ ảnh** - Tạo link chia sẻ công khai
-- 🔐 **Đăng nhập/Phân quyền** - Hệ thống xác thực người dùng
+| Thành phần | Image / công nghệ |
+|---|---|
+| Web | Node.js 20.20.2 Alpine, Express, EJS |
+| Database | MySQL 8.0.46 |
+| DB UI | phpMyAdmin 5.2.3 |
+| Reverse proxy | Nginx unprivileged 1.31.6 Alpine |
+| Metrics | Prometheus 3.15.0, Grafana Enterprise 13.2.3 |
+| Exporters | cAdvisor 0.55.1, node-exporter 1.12.1, mysqld-exporter 0.20.0, nginx-prometheus-exporter 1.4.2 |
+| Logging | Loki 3.7.8, Promtail 3.6.8 |
 
-## 🏗️ Kiến trúc hệ thống
+## Chạy lần đầu
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│    Nginx        │────▶│    Web App      │────▶│     MySQL       │
-│  (Reverse Proxy)│     │  (Express.js)   │     │   (Database)    │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-         │                      │                      │
-         ▼                      ▼                      ▼
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Prometheus    │     │      Loki       │     │   phpMyAdmin    │
-│  (Metrics)      │     │  (Logs)         │     │  (DB Tool)      │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-         │                      │
-         ▼                      ▼
-┌─────────────────────────────────────────────────┐
-│              Grafana (Dashboard)                │
-└─────────────────────────────────────────────────┘
-```
+Yêu cầu Docker Desktop với WSL 2 (Windows) hoặc Docker Engine và Docker Compose
+plugin trên Linux.
 
-## 🛠️ Công nghệ sử dụng
-
-| Thành phần | Công nghệ | Phiên bản |
-|------------|-----------|-----------|
-| Backend | Node.js + Express.js | 20 / 4.18 |
-| Template Engine | EJS | 3.1 |
-| Database | MySQL | 8.0 |
-| DB Tool | phpMyAdmin | Latest |
-| Reverse Proxy | Nginx | Alpine |
-| Monitoring | Prometheus + Grafana | Latest |
-| Logging | Loki + Promtail | Latest |
-| Containerization | Docker + Docker Compose | 3.8 |
-| Exporters | cAdvisor, node-exporter, mysqld-exporter | Latest |
-
-## 🚀 Hướng dẫn chạy dự án
-
-### Yêu cầu hệ thống
-- Docker >= 20.10
-- Docker Compose >= 2.0
-- Git
-- Tối thiểu 4GB RAM
-
-### 1. Clone repository
 ```bash
-git clone https://github.com/{{MSSV}}/{{MSSV}}-devops-final.git
-cd {{MSSV}}-devops-final
-```
-
-### 2. Cấu hình môi trường
-```bash
+git clone https://github.com/NguyenManhCuong06/DTC245200308.git
+cd DTC245200308
 cp .env.example .env
-# Chỉnh sửa file .env với mật khẩu bảo mật
 ```
 
-### 3. Tạo SSL certificates (tự ký)
-```bash
-# Linux/macOS
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout nginx/certs/selfsigned.key \
-  -out nginx/certs/selfsigned.crt \
-  -subj "/C=VN/ST=HoChiMinh/L=HoChiMinh/O=GalleryProject/CN=localhost"
+Trên PowerShell, thay các giá trị `replace_with_...` trong `.env` bằng các chuỗi
+hex ngẫu nhiên riêng biệt (mỗi giá trị 64 ký tự). Có thể tạo chuỗi bằng:
 
-# Windows PowerShell
-New-SelfSignedCertificate -Type SSLServerAuthentication -DnsName "localhost" `
-  -FriendlyName "GalleryDevCert" -KeyLength 2048 -HashAlgorithm SHA256 `
-  -NotAfter (Get-Date).AddYears(1)
+```powershell
+openssl rand -hex 32
 ```
 
-### 4. Khởi động hệ thống
+Không dùng các giá trị mẫu trên môi trường dùng chung hoặc public. File `.env`
+không được đưa vào Git. Sau đó chạy:
+
 ```bash
 docker compose up -d --build
-```
-
-### 5. Kiểm tra trạng thái
-```bash
 docker compose ps
-docker compose logs -f web
 ```
 
-### 6. Truy cập các dịch vụ
+Seed dữ liệu demo (3 tài khoản, 5 album, 25 ảnh và tag) bằng lệnh sau:
 
-| Dịch vụ | URL | Mô tả |
-|---------|-----|-------|
-| **Web App** | https://localhost | Ứng dụng chính (HTTPS) |
-| **phpMyAdmin** | http://localhost:8080 | Quản lý database |
-| **Grafana** | http://localhost:3000 | Dashboard monitoring |
-| **Prometheus** | http://localhost:9090 | Metrics collection |
-| **Loki** | http://localhost:3100 | Log aggregation |
-
-**Tài khoản mặc định:**
-- Grafana: `admin` / (xem trong `.env` - `GRAFANA_ADMIN_PASSWORD`)
-- phpMyAdmin: user/password từ `.env` (`MYSQL_USER` / `MYSQL_PASSWORD`)
-
-## 📁 Cấu trúc thư mục
-
-```
-{{MSSV}}-devops-final/
-├── app/                    # Source code ứng dụng
-│   ├── src/
-│   │   ├── controllers/    # Xử lý logic nghiệp vụ
-│   │   ├── routes/         # Định tuyến API
-│   │   ├── middlewares/    # Middleware xác thực
-│   │   ├── utils/          # Tiện ích
-│   │   └── app.js          # Entry point
-│   ├── views/              # EJS templates
-│   ├── public/             # Static assets
-│   ├── Dockerfile
-│   └── package.json
-├── nginx/
-│   ├── conf.d/
-│   │   └── default.conf    # Nginx config
-│   ├── certs/              # SSL certificates
-│   └── logs/               # Nginx logs
-├── prometheus/
-│   └── prometheus.yml      # Prometheus config
-├── grafana/
-│   └── provisioning/       # Auto-provisioning
-├── loki/
-│   └── loki-config.yml     # Loki config
-├── promtail/
-│   └── promtail-config.yml # Promtail config
-├── db/
-│   └── init-scripts/       # SQL init scripts
-├── docker-compose.yml      # Main orchestration
-├── .env.example            # Environment template
-└── README.md
+```bash
+docker compose exec -T web node /app/db/init-scripts/seed-demo.js
 ```
 
-## 🔐 Hardening & Security
+`UPLOAD_DIR` được cấu hình tới thư mục uploads dùng chung. Nếu thiếu
+`DEMO_ADMIN_PASSWORD` hoặc `DEMO_USER_PASSWORD`, seed tự sinh mật khẩu ngẫu
+nhiên mạnh và chỉ in mỗi mật khẩu một lần.
 
-1. **Non-root containers** - Tất cả container chạy với user non-root
-2. **Network isolation** - 3 networks: frontend, backend, monitoring
-3. **Secrets management** - Mật khẩu qua `.env`, không hard-code
-4. **DB user restrictions** - User `app_user` chỉ có quyền cần thiết
-5. **Security headers** - Nginx: X-Frame-Options, CSP, HSTS, etc.
-6. **Capability dropping** - `cap_drop: ALL`, `no-new-privileges`
-7. **Resource limits** - CPU/Memory limits cho từng container
-8. **Rate limiting** - Nginx rate limit cho API và login
-9. **Read-only filesystem** - Khi có thể áp dụng
-10. **Health checks** - Tự động restart khi container unhealthy
+Chứng thư self-signed cho `localhost` được Nginx tự tạo lần đầu và lưu trong
+volume `nginx_certs`. Trình duyệt cảnh báo chứng thư không được CA tin cậy là
+bình thường trong môi trường phát triển.
 
-## 📊 Monitoring & Logging
+## Truy cập
 
-### Prometheus Targets
-- `web:3000` - Web application metrics
-- `db:3306` - MySQL (via mysqld-exporter:9104)
-- `cadvisor:8080` - Container metrics
-- `node-exporter:9100` - Host metrics
-- `prometheus:9090` - Self-monitoring
+| Thành phần | Địa chỉ | Phạm vi |
+|---|---|---|
+| Gallery | `https://localhost` | Qua Nginx HTTPS; host ports 443/80 publish trên các interface của máy |
+| phpMyAdmin | `http://localhost:8080/` | Cổng riêng chỉ bind `127.0.0.1`; đăng nhập bằng `MYSQL_USER` và `MYSQL_PASSWORD`; không đi qua Nginx |
+| Grafana | `http://localhost:3000` | Chỉ bind loopback; user `admin`, mật khẩu `GRAFANA_ADMIN_PASSWORD` |
+| Prometheus | `http://localhost:9090` | Chỉ bind loopback |
+| Loki API | `http://localhost:3100` | Chỉ bind loopback |
+| Exporter endpoints | `localhost:9100`, `:9104`, `:9113` | Chỉ bind loopback |
 
-### Grafana Dashboards (Auto-provisioned)
-- **Container Monitoring** - CPU, Memory, Network
-- **Web Application** - Request rate, Response time, Errors
-- **MySQL Database** - Connections, Queries, Slow queries
+Gallery đi qua Nginx và có thể truy cập từ LAN nếu firewall của host cho phép.
+phpMyAdmin, các cổng monitoring và exporter chỉ bind `127.0.0.1`, nên chỉ truy
+cập được từ chính máy host; không dùng địa chỉ LAN cố định vì nó có thể đổi
+theo DHCP. Không mở trực tiếp MySQL ra host.
 
-### Loki Log Queries (LogQL)
+## Monitoring
+
+Prometheus scrape targets:
+
+- `web:3000/metrics`
+- `mysqld-exporter:9104/metrics`
+- `cadvisor:8080/metrics`
+- `node-exporter:9100/metrics`
+- `nginx-prometheus-exporter:9113/metrics`
+- `prometheus:9090/metrics`
+
+Grafana tự provision dashboards cho container, ứng dụng web, Nginx và MySQL.
+MySQL exporter dùng tài khoản riêng `gallery_exporter`; ứng dụng kết nối bằng
+`MYSQL_USER`, không dùng MySQL root.
+
+## LogQL
+
+Promtail lấy Docker container logs qua Docker socket (chỉ container của Compose
+project `gallery`) và tail file JSON của ứng dụng tại `app/src/logs`. Nhãn Docker gồm `container`, `service`, `stream`.
+Có thể chạy các truy vấn trong Grafana → Explore → Loki:
+
 ```logql
-# Lỗi ứng dụng web
-{container="web"} |= "error"
-
-# Lỗi Nginx 5xx
-{container="nginx"} | json | status >= 500
-
-# Tỷ lệ log theo container
-sum by (container) (rate({job="docker"}[5m]))
+{container="web"}
+{job="application"} | json | status_code=~"4..|5.."
+{job="application"} | json | level=~"(?i)(error|warn)"
+sum(count_over_time({container="web"}[5m]))
 ```
 
-## 🔧 Các lệnh hữu ích
+Các query chỉ trả log trong khoảng thời gian đang chọn và sau khi có request/log
+tương ứng.
+
+Dashboard **Gallery Logs** trong Grafana có truy vấn container/Nginx, lọc HTTP
+4xx/5xx, mức error/warn và thống kê `count_over_time`.
+
+Kiểm chứng trực tiếp qua Loki API trên Windows host ngày 13-10-2026 sau khi gửi
+request 404 tới `/error` và `/gd3-promtail-no-bind-20261013`.
+`query_range` dùng khoảng `2026-10-13T14:55:23Z` đến
+`2026-10-13T15:00:23Z`, giới hạn 1000 dòng. IP trong mẫu đã được che:
+
+```logql
+# 35 dòng. Mẫu: Nginx notice, start worker process
+{container="nginx"}
+
+# 3 dòng. Mẫu: GET /gd3-promtail-no-bind-20261013, status_code=404
+{container="nginx"} |= " 404 "
+
+# 3 dòng. Mẫu: application request GET /error, status_code=404
+{job="application"} |~ "(?i)(error|warn)"
+
+# 1 sample, giá trị 35; cửa sổ count_over_time là 5 phút
+sum(count_over_time({container="nginx"}[5m]))
+```
+
+Truy vấn regex là lọc văn bản log: mẫu hiện tại khớp chuỗi `/error` trong URL,
+không có nghĩa sự kiện được ghi ở severity `error`. Các số dòng là snapshot và
+thay đổi theo lượng request và thời gian lưu log.
+
+## Hardening trong cấu hình
+
+- Ứng dụng chạy user `node`; Nginx unprivileged chạy user `nginx` (UID 101), lắng nghe 8080/8443 trong container và publish 80/443.
+- MySQL không publish port ra host; DB network được khai báo internal.
+- Prometheus, Grafana, Loki và exporter ports được bind vào `127.0.0.1`.
+- Credential được truyền qua `.env`; MySQL root chỉ được tạo cho `localhost`; app user chỉ có SELECT/INSERT/UPDATE/DELETE trên schema gallery và exporter có tài khoản riêng.
+- Web và Nginx dùng filesystem read-only, tmpfs cho vùng ghi; web, Nginx, metrics/logging services thả Linux capabilities và tắt privilege escalation.
+- Prometheus, Loki, Promtail, cAdvisor và exporters dùng filesystem read-only khi có volume/tmpfs phù hợp. Grafana giữ root filesystem writable: image Enterprise tự cập nhật plugin bundled lúc khởi động; thử read-only làm plugin registry không đăng ký datasource.
+- Nginx có HTTPS self-signed, HTTP→HTTPS, HSTS, security headers, giới hạn request body 105 MiB và rate limit riêng cho `/login` và `/register` (5 request/phút + burst 5).
+- Loki, Promtail và Nginx exporter dùng static HTTP readiness probe do image upstream không có shell/curl; các probe kiểm tra `/ready` hoặc `/metrics`.
+- Web chỉ khởi động sau healthcheck MySQL qua TCP loopback (không chỉ kiểm tra Unix socket), tránh đánh dấu DB sẵn sàng trước khi cổng ứng dụng chấp nhận kết nối.
+- Các image base và custom image đều được gắn version cụ thể; Compose đặt giới hạn CPU/RAM và healthcheck cho toàn bộ service.
+
+### Giới hạn bảo mật đã biết
+
+- Promtail và cAdvisor chạy root. Promtail mount `/var/run/docker.sock` với `:ro`,
+  nhưng quyền đọc socket không giới hạn các lệnh Docker API mà client có thể gửi.
+  cAdvisor cũng mount `/var/run` chỉ đọc. Các mount read-only không ngăn client
+  gửi lệnh Docker API có tác dụng ghi; đây là rủi ro đã chấp nhận.
+- Docker socket chỉ được mount ở chế độ `:ro`; điều này giới hạn ghi file qua
+  bind mount nhưng không hạn chế các lệnh ghi mà client có thể gửi qua Docker
+  API. Đây là rủi ro đã chấp nhận khi dùng Docker service discovery, không phải
+  sandbox bảo mật cho Docker daemon.
+- Promtail dùng `docker_sd_configs` và đã kiểm tra thu được log container khi
+  bỏ bind mount `/var/lib/docker/containers`; ứng dụng vẫn có scrape file log
+  riêng tại `/app/src/logs`. Cấu hình này đã chạy trên Docker Desktop WSL 2;
+  cần kiểm tra lại trên Linux Engine khác trước khi khẳng định tương thích.
+- cAdvisor mount `/var/run` ở chế độ chỉ đọc. Sau khi recreate, container healthy
+  và Prometheus vẫn ghi nhận metrics với nhãn `name` là `web`, `db`, `nginx`.
+- `gallery_exporter` có `SELECT`, `PROCESS` và `REPLICATION CLIENT` trên `*.*`,
+  không có quyền ghi. Đây là tập quyền đọc/giám sát được tài liệu mysqld_exporter
+  yêu cầu; `SELECT` áp dụng toàn cục do exporter đọc các bảng trạng thái hệ thống,
+  không chỉ schema Gallery.
+- Grafana giữ root filesystem writable do plugin bundled cần ghi lúc khởi động.
+  phpMyAdmin Apache master chạy root, worker chạy `www-data`; MySQL entrypoint
+  khởi tạo dưới root rồi daemon chạy UID 999.
+- `express-session` dùng MemoryStore mặc định nên phiên đăng nhập mất khi web
+  restart. `node-exporter` đo máy ảo Linux WSL 2, không đại diện toàn bộ Windows.
+
+Không coi chứng thư self-signed hay mật khẩu phát triển là cấu hình production.
+
+## Vận hành
 
 ```bash
-# Xem logs
-docker compose logs -f [service_name]
-
-# Restart service
-docker compose restart [service_name]
-
-# Rebuild và restart
-docker compose up -d --build [service_name]
-
-# Xem trạng thái container
-docker compose ps
-
-# Xóa toàn bộ (data sẽ mất)
-docker compose down -v
-
-# Backup database
-docker compose exec db mysqldump -u root -p gallery_db > backup.sql
-
-# Restore database
-docker compose exec -T db mysql -u root -p gallery_db < backup.sql
+docker compose logs -f web
+docker compose logs -f promtail loki
+docker compose restart web
 ```
 
-## 📝 API Endpoints
-
-| Method | Endpoint | Mô tả | Auth |
-|--------|----------|-------|------|
-| GET | `/` | Trang chủ | No |
-| GET | `/login` | Đăng nhập | No |
-| POST | `/login` | Xử lý đăng nhập | No |
-| GET | `/register` | Đăng ký | No |
-| POST | `/register` | Xử lý đăng ký | No |
-| GET | `/logout` | Đăng xuất | Yes |
-| GET | `/albums` | Danh sách album | No |
-| POST | `/albums` | Tạo album mới | Yes |
-| GET | `/albums/:id` | Chi tiết album | No |
-| DELETE | `/albums/:id` | Xóa album | Yes (owner) |
-| GET | `/photos` | Danh sách ảnh | No |
-| POST | `/photos/upload` | Upload ảnh | Yes |
-| GET | `/photos/:id` | Chi tiết ảnh | No |
-| GET | `/photos/:id/share` | Link chia sẻ | No |
-| GET | `/health` | Health check | No |
-| GET | `/api/health` | API health check | No |
-| GET | `/api/albums` | API danh sách album | No |
-| GET | `/api/photos` | API danh sách ảnh | No |
-
-## 🐛 Troubleshooting
-
-### Container không start được
-```bash
-docker compose logs [service_name]
-docker compose ps
-```
-
-### Database connection failed
-```bash
-# Kiểm tra db healthy
-docker compose exec db mysqladmin ping -h localhost
-
-# Kiểm tra biến môi trường
-docker compose exec web env | grep DB
-```
-
-### Prometheus targets DOWN
-```bash
-# Kiểm tra network
-docker network inspect {{MSSV}}-devops-final_monitoring
-
-# Kiểm tra target config
-curl http://localhost:9090/api/v1/targets
-```
-
-### Loki không có log
-```bash
-# Kiểm tra promtail config
-docker compose logs promtail
-
-# Kiểm tra loki
-curl http://localhost:3100/ready
-```
-
-### HTTPS không hoạt động
-```bash
-# Kiểm tra certificates
-ls -la nginx/certs/
-
-# Kiểm tra nginx config
-docker compose exec nginx nginx -t
-```
-
-## 📄 Báo cáo
-
-Xem báo cáo chi tiết tại: [`docs/report.md`](docs/report.md)
-
-## 👨‍💻 Thông tin sinh viên
-
-- **Họ tên:** {{HỌ_TÊN}}
-- **MSSV:** {{MSSV}}
-- **Lớp:** {{LỚP}}
-- **Môn học:** {{MÔN_HỌC}}
-- **GVHD:** {{GVHD}}
-- **Trường/Khoa:** {{TRƯỜNG_KHOA}}
-
-## 📄 License
-
-MIT License - Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
-
----
-
-**Lưu ý:** Đây là dự án đồ án môn học. Không sử dụng cho môi trường production thực tế mà không có các biện pháp bảo mật bổ sung.
+`docker compose down` giữ các named volumes. `docker compose down -v` xóa database
+và dữ liệu Grafana/Prometheus/Loki; các thư mục uploads và application logs được
+bind-mount từ `app/public/uploads` và `app/src/logs` nên vẫn còn trên host.
+Chỉ dùng `down -v` khi chủ động muốn làm sạch dữ liệu trong named volumes.

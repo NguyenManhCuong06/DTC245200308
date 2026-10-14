@@ -1,99 +1,512 @@
-const { db } = require('../app');
+const db = require('../db');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+const sharp = require('sharp');
+
+const uploadDirectory = path.join(__dirname, '../../public/uploads');
+const maxUploadBytes = 10 * 1024 * 1024;
+const sharpOptions = { failOn: 'error', limitInputPixels: 20000000 };
+const imageFormats = {
+  jpeg: { mime: 'image/jpeg', extensions: ['.jpg', '.jpeg'] },
+  png: { mime: 'image/png', extensions: ['.png'] },
+  webp: { mime: 'image/webp', extensions: ['.webp'] }
+};
+
+function notFound(res) {
+  return res.status(404).render('pages/404', { title: 'Photo not found' });
+}
+
+async function loadImage(file) {
+  if (!file || file.truncated || !Buffer.isBuffer(file.data) || file.data.length > maxUploadBytes) {
+    throw new Error('Each image must be no larger than 10 MB');
+  }
+  let format;
+  try {
+    format = await sharp(file.data, sharpOptions).metadata();
+  } catch {
+    throw new Error('Image file is not a valid JPEG, PNG or WebP image');
+  }
+  const expected = imageFormats[format.format];
+  const extension = path.extname(file.name).toLowerCase();
+  if (!expected || file.mimetype !== expected.mime || !expected.extensions.includes(extension)) {
+    throw new Error('Image content, MIME type and file extension must match (JPEG, PNG or WebP)');
+  }
+  try {
+    await sharp(file.data, sharpOptions).stats();
+  } catch {
+    throw new Error('Image file is corrupt or unsupported');
+  }
+  return { file, format: format.format, extension };
+}
+
+async function removeStoredFiles(files) {
+  await Promise.all(files.map(async file => {
+    try {
+      await fs.promises.unlink(file);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+  }));
+}
 
 const photoController = {
-  getAllPhotos: (req, res) => {
+  getAllPhotos: async (req, res) => {
+    const userId = req.user ? req.user.id : -1;
+    const filters = ['((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ? OR ? = ?)'];
+    const params = [userId, req.user ? req.user.role : '', 'admin'];
+    const searchTerm = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
+    const tagFilter = typeof req.query.tag === 'string' ? req.query.tag.trim().slice(0, 50) : '';
+    if (tagFilter) {
+      filters.push(`EXISTS (
+        SELECT 1 FROM photo_tags pt JOIN tags t ON t.id = pt.tag_id
+        WHERE pt.photo_id = p.id AND t.name = ?
+      )`);
+      params.push(tagFilter);
+    }
+    if (searchTerm) {
+      filters.push(`(
+        p.title LIKE ?
+        OR a.title LIKE ?
+        OR EXISTS (
+          SELECT 1 FROM photo_tags pt JOIN tags t ON t.id = pt.tag_id
+          WHERE pt.photo_id = p.id AND t.name LIKE ?
+        )
+      )`);
+      params.push(`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`);
+    }
+    const where = filters.join(' AND ');
+    const perPage = 12;
+    const requestedPage = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const paginationQuery = new URLSearchParams();
+    if (searchTerm) paginationQuery.set('q', searchTerm);
+    if (tagFilter) paginationQuery.set('tag', tagFilter);
     const query = `
-      SELECT p.*, u.username, a.title as album_title
+      SELECT p.*, u.username, a.title as album_title,
+             (SELECT GROUP_CONCAT(t.name ORDER BY t.name SEPARATOR ',')
+              FROM photo_tags pt JOIN tags t ON t.id = pt.tag_id
+              WHERE pt.photo_id = p.id) AS tag_names
       FROM photos p
       JOIN users u ON p.user_id = u.id
       LEFT JOIN albums a ON p.album_id = a.id
-      WHERE p.is_public = TRUE OR p.user_id = ?
+      WHERE ${where}
       ORDER BY p.created_at DESC
+      LIMIT ? OFFSET ?
     `;
     
-    db.query(query, [req.user ? req.user.id : -1], (err, results) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.render('pages/photos', { 
+    try {
+      const [[{ totalCount }]] = await db.promise().query(
+        `SELECT COUNT(*) AS totalCount
+         FROM photos p LEFT JOIN albums a ON a.id = p.album_id
+         WHERE ${where}`,
+        params
+      );
+      const totalPages = Math.ceil(totalCount / perPage);
+      const page = Math.min(requestedPage, Math.max(totalPages, 1));
+      const offset = (page - 1) * perPage;
+      const [results] = await db.promise().query(query, [...params, perPage, offset]);
+      results.forEach(photo => {
+        photo.path = `/photos/${photo.id}/original`;
+        photo.thumbnailPath = `/photos/${photo.id}/thumbnail`;
+      });
+      res.render('pages/photos', {
         title: 'Photos',
         photos: results,
-        user: req.user
+        user: req.user,
+        searchTerm,
+        activeTag: tagFilter,
+        currentPage: page,
+        totalPages,
+        totalCount,
+        previousUrl: page > 1
+          ? `/photos?${paginationQuery.toString()}${paginationQuery.size ? '&' : ''}page=${page - 1}`
+          : null,
+        nextUrl: page < totalPages
+          ? `/photos?${paginationQuery.toString()}${paginationQuery.size ? '&' : ''}page=${page + 1}`
+          : null,
+        messages: { error: req.flash('error'), success: req.flash('success') }
       });
-    });
+    } catch (error) {
+      console.error('Unable to load photos:', error.message);
+      res.status(500).send('Unable to load photos');
+    }
   },
 
-  uploadPhoto: (req, res) => {
+  renderUpload: async (req, res) => {
+    if (!req.user) return res.redirect('/login');
+    try {
+      const [albums] = await db.promise().query(
+        'SELECT id, title FROM albums WHERE user_id = ? ORDER BY title',
+        [req.user.id]
+      );
+      res.render('pages/photo-upload', {
+        title: 'Upload Photos',
+        albums,
+        selectedAlbumId: req.query.album_id || '',
+        user: req.user,
+        messages: { error: req.flash('error'), success: req.flash('success') }
+      });
+    } catch (error) {
+      console.error('Unable to load upload form:', error.message);
+      res.status(500).send('Unable to load upload form');
+    }
+  },
+
+  uploadPhoto: async (req, res) => {
     if (!req.user) {
-      return res.status(403).json({ error: 'Unauthorized' });
+      return res.redirect('/login');
     }
 
-    if (!req.files || Object.keys(req.files).length === 0) {
-      return res.status(400).json({ error: 'No files uploaded' });
+    const submitted = req.files && (req.files.photos || req.files.photo);
+    if (!submitted) {
+      req.flash('error', 'Choose at least one image');
+      return res.redirect('/photos/upload');
     }
 
-    const file = req.files.photo;
-    const fileName = `${Date.now()}-${file.name}`;
-    const uploadPath = path.join(__dirname, '../../public/uploads', fileName);
-    
-    file.mv(uploadPath, (err) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
+    const files = Array.isArray(submitted) ? submitted : [submitted];
+    if (files.length > 10) {
+      req.flash('error', 'Upload no more than 10 images at a time');
+      return res.redirect('/photos/upload');
+    }
+
+    const createdFiles = [];
+    let connection;
+    let transactionStarted = false;
+    try {
+      const validImages = [];
+      for (const file of files) {
+        validImages.push(await loadImage(file));
+      }
+      const albumId = req.body.album_id || null;
+      let albumIsPublic = true;
+      if (albumId) {
+        const [albums] = await db.promise().query(
+          'SELECT id, is_public FROM albums WHERE id = ? AND user_id = ?',
+          [albumId, req.user.id]
+        );
+        if (!albums.length) {
+          req.flash('error', 'Select an album that you own');
+          return res.redirect('/photos/upload');
+        }
+        albumIsPublic = Boolean(albums[0].is_public);
       }
 
-      const { title, description, album_id } = req.body;
-      const filePath = `/uploads/${fileName}`;
-      
-      const query = 'INSERT INTO photos (title, description, filename, path, album_id, user_id) VALUES (?, ?, ?, ?, ?, ?)';
-      db.query(query, [title || fileName, description, fileName, filePath, album_id || null, req.user.id], (dbErr) => {
-        if (dbErr) {
-          fs.unlinkSync(uploadPath);
-          return res.status(500).json({ error: dbErr.message });
+      await fs.promises.mkdir(uploadDirectory, { recursive: true });
+      connection = await db.promise().getConnection();
+      await connection.beginTransaction();
+      transactionStarted = true;
+      for (const image of validImages) {
+        const id = crypto.randomUUID();
+        const extension = image.extension === '.jpeg' ? '.jpg' : image.extension;
+        const filename = `${id}${extension}`;
+        const thumbnailFilename = `${id}-thumb.webp`;
+        const originalPath = path.join(uploadDirectory, filename);
+        const thumbnailPath = path.join(uploadDirectory, thumbnailFilename);
+        await sharp(image.file.data, sharpOptions).rotate().toFile(originalPath);
+        createdFiles.push(originalPath);
+        await sharp(image.file.data, sharpOptions)
+          .rotate()
+          .resize({ width: 480, height: 360, fit: 'inside', withoutEnlargement: true })
+          .webp({ quality: 82 })
+          .toFile(thumbnailPath);
+        createdFiles.push(thumbnailPath);
+
+        const photoTitle = req.body.title && validImages.length === 1
+          ? req.body.title.trim()
+          : path.parse(image.file.name).name;
+        const [insertResult] = await connection.query(
+          `INSERT INTO photos
+            (title, description, filename, path, thumbnail_path, album_id, user_id, is_public)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            photoTitle || filename,
+            req.body.description || '',
+            filename,
+            `/uploads/${filename}`,
+            `/uploads/${thumbnailFilename}`,
+            albumId,
+            req.user.id,
+            albumIsPublic ? 1 : 0
+          ]
+        );
+        image.photoId = insertResult.insertId;
+      }
+
+      await connection.commit();
+      transactionStarted = false;
+      req.app.locals.metrics?.photosUploadedTotal?.inc(validImages.length);
+      req.flash('success', `${validImages.length} image(s) uploaded successfully`);
+      res.redirect(albumId ? `/albums/${albumId}` : '/photos');
+    } catch (error) {
+      if (transactionStarted && connection) {
+        try {
+          await connection.rollback();
+        } catch (rollbackError) {
+          console.error('Unable to roll back incomplete photo upload:', rollbackError.message);
         }
-        res.redirect('/albums/' + (album_id || ''));
-      });
-    });
+      }
+      try {
+        await removeStoredFiles(createdFiles);
+      } catch (cleanupError) {
+        console.error('Unable to remove incomplete upload files:', cleanupError.message);
+      }
+      if (error.message.startsWith('Each image') || error.message.startsWith('Image')) {
+        req.flash('error', error.message);
+        return res.redirect('/photos/upload');
+      }
+      console.error('Photo upload failed:', error.message);
+      res.status(500).send('Photo upload failed');
+    } finally {
+      if (connection) connection.release();
+    }
   },
 
-  getPhotoById: (req, res) => {
+  getPhotoById: async (req, res) => {
     const query = `
-      SELECT p.*, u.username, a.title as album_title
+      SELECT p.*, u.username, a.title as album_title,
+             (SELECT GROUP_CONCAT(t.name ORDER BY t.name SEPARATOR ',')
+              FROM photo_tags pt JOIN tags t ON t.id = pt.tag_id
+              WHERE pt.photo_id = p.id) AS tag_names
       FROM photos p
       JOIN users u ON p.user_id = u.id
       LEFT JOIN albums a ON p.album_id = a.id
-      WHERE p.id = ?
+      WHERE p.id = ? AND ((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ? OR ? = ?)
     `;
     
-    db.query(query, [req.params.id], (err, results) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      
-      if (results.length === 0) {
-        return res.status(404).render('pages/404', { title: 'Photo not found' });
-      }
-      
+    try {
+      const [results] = await db.promise().query(query, [
+        req.params.id,
+        req.user ? req.user.id : -1,
+        req.user ? req.user.role : '',
+        'admin'
+      ]);
+      if (!results.length) return notFound(res);
+      const photo = results[0];
+      const [tags] = await db.promise().query(
+        'SELECT t.id, t.name FROM tags t JOIN photo_tags pt ON pt.tag_id = t.id WHERE pt.photo_id = ? ORDER BY t.name',
+        [photo.id]
+      );
+      photo.tags = tags;
+      photo.path = `/photos/${photo.id}/original`;
+      photo.thumbnailPath = `/photos/${photo.id}/thumbnail`;
       res.render('pages/photo-detail', { 
-        title: results[0].title,
-        photo: results[0],
-        user: req.user
+        title: photo.title,
+        photo,
+        user: req.user,
+        messages: { error: req.flash('error'), success: req.flash('success') }
       });
-    });
+    } catch (error) {
+      console.error('Unable to load photo:', error.message);
+      res.status(500).send('Unable to load photo');
+    }
   },
 
-  sharePhoto: (req, res) => {
-    const query = 'SELECT * FROM photos WHERE id = ?';
-    db.query(query, [req.params.id], (err, results) => {
-      if (err || results.length === 0) {
-        return res.status(404).json({ error: 'Photo not found' });
-      }
-      res.json({ 
-        url: `${req.protocol}://${req.get('host')}/photos/${results[0].id}`,
-        photo: results[0]
+  renderEditPhoto: async (req, res) => {
+    if (!req.user) return res.redirect('/login');
+    try {
+      const [photos] = await db.promise().query(
+        'SELECT * FROM photos WHERE id = ? AND user_id = ?',
+        [req.params.id, req.user.id]
+      );
+      if (!photos.length) return notFound(res);
+      res.render('pages/photo-edit', {
+        title: 'Edit Photo',
+        photo: photos[0],
+        user: req.user,
+        messages: { error: req.flash('error'), success: req.flash('success') }
       });
-    });
+    } catch (error) {
+      console.error('Unable to load photo edit form:', error.message);
+      res.status(500).send('Unable to load photo');
+    }
+  },
+
+  updatePhoto: async (req, res) => {
+    if (!req.user) return res.redirect('/login');
+    if (!req.body.title || !req.body.title.trim()) {
+      req.flash('error', 'Photo title is required');
+      return res.redirect(`/photos/${req.params.id}/edit`);
+    }
+    try {
+      const [result] = await db.promise().query(
+        'UPDATE photos SET title = ?, description = ? WHERE id = ? AND user_id = ?',
+        [req.body.title.trim(), req.body.description || '', req.params.id, req.user.id]
+      );
+      if (!result.affectedRows) return notFound(res);
+      req.flash('success', 'Photo updated successfully');
+      res.redirect(`/photos/${req.params.id}`);
+    } catch (error) {
+      console.error('Unable to update photo:', error.message);
+      res.status(500).send('Unable to update photo');
+    }
+  },
+
+  addTag: async (req, res) => {
+    if (!req.user) return res.redirect('/login');
+    const tagName = typeof req.body.tag_name === 'string'
+      ? req.body.tag_name.normalize('NFKC').trim().toLocaleLowerCase()
+      : '';
+    if (!tagName || tagName.length > 50 || !/^[\p{L}\p{N}_ -]+$/u.test(tagName)) {
+      req.flash('error', 'Tag names may contain letters, numbers, spaces, hyphens and underscores (maximum 50 characters)');
+      return res.redirect(`/photos/${req.params.id}`);
+    }
+    try {
+      const [photos] = await db.promise().query(
+        'SELECT id FROM photos WHERE id = ? AND user_id = ?',
+        [req.params.id, req.user.id]
+      );
+      if (!photos.length) return notFound(res);
+      const [tagResult] = await db.promise().query(
+        'INSERT INTO tags (name) VALUES (?) ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)',
+        [tagName]
+      );
+      await db.promise().query(
+        'INSERT IGNORE INTO photo_tags (photo_id, tag_id) VALUES (?, ?)',
+        [req.params.id, tagResult.insertId]
+      );
+      req.flash('success', 'Tag added');
+      res.redirect(`/photos/${req.params.id}`);
+    } catch (error) {
+      console.error('Unable to tag photo:', error.message);
+      res.status(500).send('Unable to add tag');
+    }
+  },
+
+  removeTag: async (req, res) => {
+    if (!req.user) return res.redirect('/login');
+    try {
+      const [result] = await db.promise().query(
+        `DELETE pt FROM photo_tags pt
+         JOIN photos p ON p.id = pt.photo_id
+         WHERE pt.photo_id = ? AND pt.tag_id = ? AND p.user_id = ?`,
+        [req.params.id, req.params.tagId, req.user.id]
+      );
+      if (!result.affectedRows) return notFound(res);
+      req.flash('success', 'Tag removed');
+      res.redirect(`/photos/${req.params.id}`);
+    } catch (error) {
+      console.error('Unable to remove photo tag:', error.message);
+      res.status(500).send('Unable to remove tag');
+    }
+  },
+
+  deletePhoto: async (req, res) => {
+    if (!req.user) return res.redirect('/login');
+    try {
+      const [photos] = await db.promise().query(
+        'SELECT path, thumbnail_path, album_id FROM photos WHERE id = ? AND user_id = ?',
+        [req.params.id, req.user.id]
+      );
+      if (!photos.length) return notFound(res);
+      const photo = photos[0];
+      const storedPaths = [photo.path, photo.thumbnail_path]
+        .map(value => path.join(uploadDirectory, path.basename(value)));
+      await removeStoredFiles(storedPaths);
+      await db.promise().query('DELETE FROM photos WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+      req.flash('success', 'Photo deleted successfully');
+      res.redirect(photo.album_id ? `/albums/${photo.album_id}` : '/photos');
+    } catch (error) {
+      console.error('Unable to delete photo:', error.message);
+      res.status(500).send('Unable to delete photo');
+    }
+  },
+
+  getMedia: async (req, res) => {
+    if (!['original', 'thumbnail'].includes(req.params.variant)) return res.sendStatus(404);
+    try {
+      const [photos] = await db.promise().query(
+        `SELECT p.path, p.thumbnail_path
+         FROM photos p
+         LEFT JOIN albums a ON a.id = p.album_id
+         WHERE p.id = ?
+           AND ((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ? OR ? = ?)`,
+        [req.params.id, req.user ? req.user.id : -1, req.user ? req.user.role : '', 'admin']
+      );
+      if (!photos.length) return res.sendStatus(404);
+      const storedPath = req.params.variant === 'thumbnail'
+        ? photos[0].thumbnail_path
+        : photos[0].path;
+      if (!storedPath || !storedPath.startsWith('/uploads/')
+          || path.posix.basename(storedPath) !== storedPath.slice('/uploads/'.length)) {
+        return res.sendStatus(404);
+      }
+      const fullPath = path.join(uploadDirectory, path.posix.basename(storedPath));
+      res.set('Cache-Control', 'private, no-store');
+      res.sendFile(fullPath, error => {
+        if (error && !res.headersSent) {
+          if (error.code === 'ENOENT') return res.sendStatus(404);
+          console.error('Unable to serve photo media:', error.message);
+          res.sendStatus(500);
+        }
+      });
+    } catch (error) {
+      console.error('Unable to authorize photo media:', error.message);
+      res.sendStatus(500);
+    }
+  },
+
+  sharePhoto: async (req, res) => {
+    try {
+      const [photos] = await db.promise().query(
+        `SELECT p.* FROM photos p
+         LEFT JOIN albums a ON a.id = p.album_id
+         WHERE p.id = ?
+           AND ((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ? OR ? = ?)`,
+        [req.params.id, req.user ? req.user.id : -1, req.user ? req.user.role : '', 'admin']
+      );
+      if (!photos.length) return res.status(404).json({ error: 'Photo not found' });
+      res.json({
+        url: `${req.protocol}://${req.get('host')}/photos/${photos[0].id}`,
+        photo: photos[0]
+      });
+    } catch (error) {
+      console.error('Unable to create photo share URL:', error.message);
+      res.status(500).json({ error: 'Unable to create share URL' });
+    }
+  },
+
+  getTagsOverview: async (req, res) => {
+    try {
+      const userId = req.user ? req.user.id : -1;
+      const [tags] = await db.promise().query(`
+        SELECT t.id, t.name, COUNT(pt.photo_id) as photo_count
+        FROM tags t
+        LEFT JOIN photo_tags pt ON pt.tag_id = t.id
+        LEFT JOIN photos p ON p.id = pt.photo_id AND (p.is_public = TRUE OR p.user_id = ? OR ? = 'admin')
+        GROUP BY t.id, t.name
+        ORDER BY photo_count DESC, t.name ASC
+      `, [userId, req.user ? req.user.role : '']);
+
+      const [recentPhotos] = await db.promise().query(`
+        SELECT p.*, u.username, a.title as album_title,
+               (SELECT GROUP_CONCAT(t2.name SEPARATOR ',') FROM photo_tags pt2 JOIN tags t2 ON t2.id = pt2.tag_id WHERE pt2.photo_id = p.id) as tag_names
+        FROM photos p
+        JOIN users u ON p.user_id = u.id
+        LEFT JOIN albums a ON a.id = p.album_id
+        JOIN photo_tags pt ON pt.photo_id = p.id
+        WHERE p.is_public = TRUE OR p.user_id = ? OR ? = 'admin'
+        GROUP BY p.id
+        ORDER BY p.created_at DESC
+        LIMIT 12
+      `, [userId, req.user ? req.user.role : '']);
+
+      recentPhotos.forEach(p => {
+        p.path = `/photos/${p.id}/original`;
+        p.thumbnailPath = `/photos/${p.id}/thumbnail`;
+        p.tags = p.tag_names ? p.tag_names.split(',') : [];
+      });
+
+      res.render('pages/tags', {
+        title: 'Phân loại ảnh & Quản lý Thẻ',
+        tags,
+        recentPhotos,
+        user: req.user,
+        messages: { error: req.flash('error'), success: req.flash('success') }
+      });
+    } catch (error) {
+      console.error('Unable to load tags:', error.message);
+      res.status(500).send('Unable to load tags overview');
+    }
   }
 };
 

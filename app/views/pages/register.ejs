@@ -1,48 +1,121 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/css/style.css">
+    <%- include('../partials/head', { title: 'Đăng ký tài khoản Studio' }) %>
 </head>
-<body class="bg-dark">
-    <div class="container vh-100 d-flex align-items-center justify-content-center">
-        <div class="card shadow-lg" style="width: 400px;">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0 text-center">Register</h4>
-            </div>
-            <div class="card-body">
-                <% if (error && error.length > 0) { %>
-                    <% const errorMsg = Array.isArray(error) ? error[0] : error; %>
-                    <div class="alert alert-danger"><%= errorMsg %></div>
-                <% } %>
-                <form action="/register" method="POST">
-                    <div class="mb-3">
-                        <label class="form-label">Username</label>
-                        <input type="text" name="username" class="form-control" placeholder="Enter username" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <input type="email" name="email" class="form-control" placeholder="Enter email" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Password</label>
-                        <input type="password" name="password" class="form-control" placeholder="Enter password" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Confirm Password</label>
-                        <input type="password" name="confirm_password" class="form-control" placeholder="Confirm password" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Register</button>
-                </form>
-                <div class="text-center mt-3">
-                    <a href="/login" class="text-decoration-none">Already have an account? Login</a>
+<body class="d-flex flex-column min-vh-100">
+    <%- include('../partials/navbar', { user: null }) %>
+
+    <main class="container my-auto py-5 d-flex align-items-center justify-content-center">
+        <div class="card shadow-lg auth-card p-4">
+            <div class="text-center mb-4">
+                <div class="d-inline-flex p-3 rounded-circle bg-primary bg-opacity-15 mb-2">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="8.5" cy="7.5" r="4"></circle>
+                        <line x1="20" y1="8" x2="20" y2="14"></line>
+                        <line x1="23" y1="11" x2="17" y2="11"></line>
+                    </svg>
                 </div>
+                <h1 class="h4 fw-bold text-white mb-1">Tạo tài khoản mới</h1>
+                <p class="text-muted small mb-0">Tham gia hệ thống thư viện ảnh Lumina Gallery</p>
+            </div>
+
+            <% if (error && error.length > 0) { %>
+                <% const errorMsg = Array.isArray(error) ? error[0] : error; %>
+                <div class="alert alert-danger py-2 small"><%= errorMsg %></div>
+            <% } %>
+
+            <form action="/register" method="POST" id="registerForm">
+                <div class="mb-3">
+                    <label class="form-label" for="username">Tên người dùng (Username)</label>
+                    <input id="username" type="text" name="username" class="form-control" placeholder="nguyenvana" required autofocus>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="email">Địa chỉ Email</label>
+                    <input id="email" type="email" name="email" class="form-control" placeholder="user@domain.com" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="passwordInput">Mật khẩu</label>
+                    <input id="passwordInput" type="password" name="password" class="form-control" placeholder="••••••••" required>
+                    <div class="form-text" id="passwordRequirements">
+                        <small class="text-muted">Tiêu chuẩn mật khẩu an toàn:</small>
+                        <ul class="mb-0 small ps-3 mt-1" id="requirementsList">
+                            <li class="text-danger" id="req-length">Ít nhất 8 ký tự</li>
+                            <li class="text-danger" id="req-upper">Ít nhất 1 chữ HOA</li>
+                            <li class="text-danger" id="req-lower">Ít nhất 1 chữ thường</li>
+                            <li class="text-danger" id="req-number">Ít nhất 1 chữ số</li>
+                            <li class="text-danger" id="req-special">Ít nhất 1 ký tự đặc biệt (!@#$%^&*...)</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label" for="confirmPasswordInput">Xác nhận mật khẩu</label>
+                    <input id="confirmPasswordInput" type="password" name="confirm_password" class="form-control" placeholder="••••••••" required>
+                    <div class="form-text text-danger mt-1 small" id="confirmMismatch" style="display:none;">Mật khẩu xác nhận không khớp</div>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 py-2" id="submitBtn" disabled>Đăng ký tài khoản</button>
+            </form>
+
+            <div class="text-center mt-4 pt-3 border-top border-secondary border-opacity-25 small text-muted">
+                Đã có tài khoản? <a href="/login" class="text-primary text-decoration-none fw-semibold">Đăng nhập</a>
             </div>
         </div>
-    </div>
-    <script src="/js/bootstrap.bundle.min.js"></script>
+    </main>
+
+    <%- include('../partials/footer') %>
+
+    <script>
+      const passwordInput = document.getElementById('passwordInput');
+      const confirmPasswordInput = document.getElementById('confirmPasswordInput');
+      const submitBtn = document.getElementById('submitBtn');
+      const confirmMismatch = document.getElementById('confirmMismatch');
+      const requirements = {
+        length: document.getElementById('req-length'),
+        upper: document.getElementById('req-upper'),
+        lower: document.getElementById('req-lower'),
+        number: document.getElementById('req-number'),
+        special: document.getElementById('req-special')
+      };
+
+      function checkRequirements() {
+        const val = passwordInput.value;
+        const checks = {
+          length: val.length >= 8,
+          upper: /[A-Z]/.test(val),
+          lower: /[a-z]/.test(val),
+          number: /[0-9]/.test(val),
+          special: /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(val)
+        };
+        let allMet = true;
+        Object.keys(checks).forEach(key => {
+          const el = requirements[key];
+          if (checks[key]) {
+            el.classList.remove('text-danger');
+            el.classList.add('text-success');
+            el.innerHTML = '✓ ' + el.textContent.replace(/^[✓✗]\s*/, '');
+          } else {
+            el.classList.remove('text-success');
+            el.classList.add('text-danger');
+            el.innerHTML = '✗ ' + el.textContent.replace(/^[✓✗]\s*/, '');
+            allMet = false;
+          }
+        });
+        return allMet;
+      }
+
+      function checkMatch() {
+        const match = passwordInput.value === confirmPasswordInput.value && confirmPasswordInput.value.length > 0;
+        confirmMismatch.style.display = match ? 'none' : 'block';
+        return match;
+      }
+
+      function updateSubmit() {
+        submitBtn.disabled = !(checkRequirements() && checkMatch());
+      }
+
+      passwordInput.addEventListener('input', updateSubmit);
+      confirmPasswordInput.addEventListener('input', updateSubmit);
+    </script>
 </body>
 </html>

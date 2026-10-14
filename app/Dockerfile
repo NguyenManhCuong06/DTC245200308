@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20.20.2-alpine
 
 # Install curl for health checks
 RUN apk add --no-cache curl
@@ -15,8 +15,8 @@ RUN npm install --omit=dev
 # Copy source code
 COPY . .
 
-# Create uploads directory
-RUN mkdir -p public/uploads && chown -R node:node public/uploads
+# Create uploads and logs directories with proper permissions
+RUN mkdir -p public/uploads src/logs && chown -R node:node public/uploads src/logs
 
 # Switch to non-root user
 USER node

@@ -1,7 +1,20 @@
 # Environment files
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+
+# Sensitive credentials & session data
+cookies*.txt
+*.cookie
+*.cookies
+*.session
+*.token
+credentials/
+secrets/
+
+# Design exports and archives
+stitch-design/
+*.zip
 
 # Dependencies
 node_modules/
@@ -50,8 +63,7 @@ nginx/certs/selfsigned.crt
 nginx/certs/selfsigned.key
 nginx/certs/*.pfx
 
-# Database
-*.sql
+# Database dumps (keep database initialization scripts under version control)
 *.dump
 *.bak
 
@@ -69,3 +81,6 @@ app/public/uploads/*
 *.pid
 *.seed
 *.pid.lock
+
+# Utility scripts (one-time use)
+download_photos.js

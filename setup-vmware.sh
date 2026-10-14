@@ -19,7 +19,7 @@ sudo apt update && sudo apt upgrade -y
 
 # Cài Docker
 echo "[2/6] Cài Docker..."
-sudo apt install -y docker.io docker-compose-plugin git curl
+sudo apt install -y docker.io docker-compose-plugin git curl openssl
 
 # Cấu hình user
 echo "[3/6] Cấu hình user docker..."
@@ -36,10 +36,19 @@ else
     cd DTC245200308
 fi
 
-# Tạo .env từ example nếu chưa có
+# Generate private development credentials without printing them.
 if [ ! -f .env ]; then
-    echo "[5/6] Tạo .env từ .env.example..."
-    cp .env.example .env
+    echo "[5/6] Tạo .env với mật khẩu ngẫu nhiên..."
+    umask 077
+    cat > .env <<EOF
+MYSQL_ROOT_PASSWORD=$(openssl rand -hex 32)
+MYSQL_DATABASE=gallery_db
+MYSQL_USER=app_user
+MYSQL_PASSWORD=$(openssl rand -hex 32)
+MYSQL_EXPORTER_PASSWORD=$(openssl rand -hex 32)
+GRAFANA_ADMIN_PASSWORD=$(openssl rand -hex 32)
+SESSION_SECRET=$(openssl rand -hex 32)
+EOF
 fi
 
 # Khởi động stack
@@ -67,10 +76,9 @@ VM_IP=$(ip route get 1.1.1.1 | awk '{print $7}' | head -1)
 echo ""
 echo "=== SETUP HOÀN TẤT ==="
 echo "Gallery:    https://$VM_IP (hoặc https://localhost trong VM)"
-echo "Grafana:    http://$VM_IP:3000 (admin/Admin@123456)"
-echo "Prometheus: http://$VM_IP:9090"
-echo "phpMyAdmin: https://$VM_IP:8080"
-echo "Loki:       http://$VM_IP:3100"
+echo "phpMyAdmin: https://$VM_IP/phpmyadmin/ (đăng nhập bằng MYSQL_USER trong .env)"
+echo "Grafana, Prometheus, Loki: chỉ truy cập localhost trong VM."
+echo "Từ máy host, dùng SSH tunnel đến các cổng 3000, 9090, 3100 nếu cần."
 echo ""
 echo "Lưu ý: Cần logout/login hoặc chạy 'newgrp docker' để dùng docker không sudo"
 echo "Truy cập từ host Windows: dùng IP $VM_IP thay vì localhost"

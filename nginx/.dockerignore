@@ -1,0 +1,11 @@
+.git/
+.env*
+certs/
+*.crt
+*.key
+*.pem
+*.pfx
+*.log
+*.tmp
+tmp/
+temp/

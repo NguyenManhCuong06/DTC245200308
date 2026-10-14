@@ -1,82 +1,145 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/css/style.css">
+    <%- include('../partials/head', { title }) %>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="/">Gallery</a>
-            <div class="collapse navbar-collapse">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link active" href="/albums">Albums</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/photos">Photos</a></li>
-                </ul>
-                <ul class="navbar-nav">
-                    <% if (user) { %>
-                        <li class="nav-item"><a class="nav-link" href="/albums/create">Create Album</a></li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                <%= user.username %>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="/logout">Logout</a></li>
-                            </ul>
-                        </li>
-                    <% } else { %>
-                        <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
-                    <% } %>
-                </ul>
+    <%- include('../partials/navbar', { user }) %>
+
+    <main class="container-fluid px-3 px-lg-4 my-4">
+        <!-- Header & Action Toolbar -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 pb-3 mb-4 border-bottom border-secondary border-opacity-25">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1 small text-muted font-monospace">
+                        <li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Lumina</a></li>
+                        <li class="breadcrumb-item active text-primary" aria-current="page">Bộ sưu tập Album</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 fw-bold mb-1 text-white">Quản lý Album / Collections</h1>
+                <p class="text-muted mb-0 small">
+                    Tập hợp các bộ sưu tập ảnh có phân quyền công khai và chia sẻ liên kết bảo mật.
+                </p>
+            </div>
+            <% if (user) { %>
+                <div>
+                    <a href="/albums/create" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        <span>+ Tạo Album Mới</span>
+                    </a>
+                </div>
+            <% } %>
+        </div>
+
+        <% (messages?.error || []).forEach(function(message) { %>
+            <div class="alert alert-danger"><%= message %></div>
+        <% }); %>
+        <% (messages?.success || []).forEach(function(message) { %>
+            <div class="alert alert-success"><%= message %></div>
+        <% }); %>
+
+        <!-- Search Toolbar -->
+        <div class="card mb-4">
+            <div class="card-body p-3">
+                <form action="/albums" method="GET" class="row g-2 align-items-center">
+                    <div class="col-md-9 col-lg-10">
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-muted">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                            </span>
+                            <input type="search" name="q" class="form-control" placeholder="Tìm theo tên album hoặc mô tả..." value="<%= searchTerm || '' %>">
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-lg-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">Tìm</button>
+                        <% if (searchTerm) { %>
+                            <a href="/albums" class="btn btn-secondary">Đặt lại</a>
+                        <% } %>
+                    </div>
+                </form>
             </div>
         </div>
-    </nav>
-    <div class="container mt-4">
-        <h1 class="mb-4">All Albums</h1>
-        
-        <% if (user) { %>
-            <div class="d-flex justify-content-between mb-3">
-                <a href="/albums/create" class="btn btn-primary">Create New Album</a>
-            </div>
-        <% } %>
 
+        <!-- Albums Grid -->
         <% if (albums && albums.length > 0) { %>
-            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                <% albums.forEach(function(album) { { %>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-4">
+                <% albums.forEach(function(album) { %>
                     <div class="col">
                         <div class="card h-100">
-                            <div class="card-body">
-                                <h5 class="card-title"><%= album.title %></h5>
-                                <p class="card-text text-muted">
-                                    <%= album.photo_count || 0 %> photos
+                            <div class="card-body d-flex flex-column p-4">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h2 class="h5 card-title mb-0 text-truncate">
+                                        <a href="/albums/<%= album.id %>" class="text-white text-decoration-none"><%= album.title %></a>
+                                    </h2>
+                                    <% if (album.is_public) { %>
+                                        <span class="badge-public">Công khai</span>
+                                    <% } else { %>
+                                        <span class="badge-private">Riêng tư</span>
+                                    <% } %>
+                                </div>
+                                <p class="card-text text-muted small mb-3 flex-grow-1" style="min-height: 2.5rem;">
+                                    <%= album.description || 'Chưa có mô tả cho bộ sưu tập này.' %>
                                 </p>
-                                <% if (album.description) { %>
-                                    <p class="card-text"><%= album.description.substring(0, 100) %>...</p>
-                                <% } %>
-                            </div>
-                            <div class="card-footer bg-transparent">
-                                <a href="/albums/<%= album.id %>" class="btn btn-sm btn-outline-primary">View Album</a>
-                                <% if (album.user_id == user.id) { %>
-                                    <form action="/albums/<%= album.id %>/delete" method="POST" style="display:inline;">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                                    </form>
-                                <% } %>
+                                <div class="pt-3 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+                                    <div class="small text-muted font-monospace">
+                                        <span><%= album.photo_count || 0 %> ảnh</span> • 
+                                        <span><%= album.username %></span>
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        <a href="/albums/<%= album.id %>" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.8rem;">Mở album</a>
+                                        <% if (user && (album.user_id == user.id || user.role === 'admin')) { %>
+                                            <a href="/albums/<%= album.id %>/edit" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.8rem;">Sửa</a>
+                                        <% } %>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                <% }); } %>
-        </div>
+                <% }); %>
+            </div>
+
+            <!-- Pagination -->
+            <% if (totalPages > 1) { %>
+                <nav aria-label="Pagination" class="d-flex justify-content-center mt-4">
+                    <ul class="pagination pagination-sm">
+                        <% if (previousUrl) { %>
+                            <li class="page-item"><a class="page-link bg-dark border-secondary text-white" href="<%= previousUrl %>">&laquo; Trước</a></li>
+                        <% } else { %>
+                            <li class="page-item disabled"><span class="page-link bg-dark border-secondary text-muted">&laquo; Trước</span></li>
+                        <% } %>
+
+                        <li class="page-item active">
+                            <span class="page-link bg-primary border-primary"><%= currentPage %> / <%= totalPages %></span>
+                        </li>
+
+                        <% if (nextUrl) { %>
+                            <li class="page-item"><a class="page-link bg-dark border-secondary text-white" href="<%= nextUrl %>">Sau &raquo;</a></li>
+                        <% } else { %>
+                            <li class="page-item disabled"><span class="page-link bg-dark border-secondary text-muted">Sau &raquo;</span></li>
+                        <% } %>
+                    </ul>
+                </nav>
+            <% } %>
+
         <% } else { %>
-            <div class="alert alert-info">No albums found. Be the first to create one!</div>
+            <div class="card p-5 text-center">
+                <p class="text-muted mb-3">Chưa có album nào phù hợp.</p>
+                <div>
+                    <a href="/albums" class="btn btn-secondary btn-sm">Xem tất cả album</a>
+                    <% if (user) { %>
+                        <a href="/albums/create" class="btn btn-primary btn-sm ms-2">Tạo album mới</a>
+                    <% } %>
+                </div>
+            </div>
         <% } %>
-    </div>
-    <footer class="bg-dark text-center text-white py-3 mt-5">
-        <div class="container">
-            <p class="mb-0">&copy; <%= new Date().getFullYear() %> Image Gallery.</p>
-        </div>
-    </footer>
+    </main>
+
+    <%- include('../partials/footer') %>
 </body>
 </html>

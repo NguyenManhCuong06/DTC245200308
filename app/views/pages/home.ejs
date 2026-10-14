@@ -1,56 +1,239 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/css/style.css">
+    <%- include('../partials/head', { title }) %>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="/">Gallery</a>
-            <div class="collapse navbar-collapse">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link" href="/albums">Albums</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/photos">Photos</a></li>
-                </ul>
-                <ul class="navbar-nav">
-                    <% if (user) { %>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                <%= user.username %>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="/logout">Logout</a></li>
-                            </ul>
-                        </li>
-                    <% } else { %>
-                        <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/register">Register</a></li>
-                    <% } %>
-                </ul>
+    <%- include('../partials/navbar', { user }) %>
+
+    <main class="container-fluid px-3 px-lg-4 my-4">
+        <% if (user) { %>
+            <!-- LOGGED-IN DASHBOARD VIEW (Stitch Lumina Dashboard) -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 pb-3 mb-4 border-bottom border-secondary border-opacity-25">
+                <div>
+                    <h1 class="h3 fw-bold mb-1 text-white">Dashboard Tổng quan</h1>
+                    <p class="text-muted mb-0 small">
+                        Chào mừng trở lại, <strong class="text-white"><%= user.username %></strong>. Quản lý toàn bộ thư viện ảnh và album cá nhân của bạn.
+                    </p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="/photos/upload" class="btn btn-primary d-inline-flex align-items-center gap-1">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>+ Tải ảnh mới</span>
+                    </a>
+                    <a href="/albums/create" class="btn btn-secondary d-inline-flex align-items-center gap-1">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="12" y1="8" x2="12" y2="16"></line>
+                            <line x1="8" y1="12" x2="16" y2="12"></line>
+                        </svg>
+                        <span>Tạo album</span>
+                    </a>
+                </div>
             </div>
-        </div>
-    </nav>
-    <div class="container mt-4">
-        <div class="jumbotron">
-            <h1 class="display-4">Welcome to Image Gallery</h1>
-            <p class="lead">A simple, secure image management system for uploading, categorizing, and sharing photos.</p>
-            <hr class="my-4">
-            <p>Store your memories in beautiful albums with full control over privacy and sharing.</p>
-            <% if (!user) { %>
-                <a class="btn btn-primary btn-lg" href="/register" role="button">Get Started</a>
-            <% } else { %>
-                <a class="btn btn-primary btn-lg" href="/albums" role="button">View My Albums</a>
+
+            <!-- Stats Metric Grid -->
+            <section class="row g-3 mb-4" aria-label="Thống kê thư viện">
+                <div class="col-sm-6 col-lg-4">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="stat-label">Ảnh của tôi</span>
+                            <span class="badge bg-primary bg-opacity-25 text-primary p-2 rounded-circle">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                            </span>
+                        </div>
+                        <div class="stat-number"><%= stats.photoCount %></div>
+                        <small class="text-muted">Tổng số tác phẩm đã tải lên</small>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="stat-label">Bộ sưu tập Album</span>
+                            <span class="badge bg-info bg-opacity-25 text-info p-2 rounded-circle">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                            </span>
+                        </div>
+                        <div class="stat-number"><%= stats.albumCount %></div>
+                        <small class="text-muted">Album lưu trữ cá nhân</small>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="stat-label">Thẻ Tag phân loại</span>
+                            <span class="badge bg-warning bg-opacity-25 text-warning p-2 rounded-circle">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2">
+                                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                                    <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                                </svg>
+                            </span>
+                        </div>
+                        <div class="stat-number"><%= stats.tagCount %></div>
+                        <small class="text-muted">Danh mục thẻ tag đang sử dụng</small>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent Uploads Section -->
+            <section class="mb-5" aria-labelledby="recent-photos-heading">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 id="recent-photos-heading" class="h5 mb-0 text-white fw-semibold">Ảnh mới tải lên gần đây</h2>
+                    <div class="d-flex gap-2">
+                        <% if (recentPhotos && recentPhotos.length > 0) { %>
+                            <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1" data-start-slideshow data-album-title="Ảnh tải lên gần đây">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                </svg>
+                                <span>Trình chiếu</span>
+                            </button>
+                        <% } %>
+                        <a href="/photos" class="btn btn-secondary btn-sm">Xem tất cả ảnh &rarr;</a>
+                    </div>
+                </div>
+
+                <% if (recentPhotos && recentPhotos.length > 0) { %>
+                    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-6 g-3">
+                        <% recentPhotos.forEach(function(photo) { %>
+                            <div class="col">
+                                <div class="card h-100">
+                                    <a href="/photos/<%= photo.id %>" class="d-block overflow-hidden" style="height: 160px;">
+                                        <img src="<%= photo.thumbnailPath %>" 
+                                             class="card-img-top w-100 h-100" 
+                                             alt="<%= photo.title %>" 
+                                             loading="lazy"
+                                             data-cinema-slide="<%= photo.path %>"
+                                             data-cinema-title="<%= photo.title %>"
+                                             data-cinema-download="<%= photo.path %>">
+                                    </a>
+                                    <div class="card-body p-2 text-truncate">
+                                        <a href="/photos/<%= photo.id %>" class="text-white text-decoration-none small fw-semibold text-truncate d-block">
+                                            <%= photo.title %>
+                                        </a>
+                                        <small class="text-muted d-block text-truncate">
+                                            <%= photo.album_title ? photo.album_title : 'Chưa phân album' %>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } else { %>
+                    <div class="card p-4 text-center">
+                        <p class="text-muted mb-3">Bạn chưa tải lên bức ảnh nào.</p>
+                        <div>
+                            <a href="/photos/upload" class="btn btn-primary btn-sm">Tải bức ảnh đầu tiên ngay</a>
+                        </div>
+                    </div>
+                <% } %>
+            </section>
+
+            <!-- Albums Preview Section -->
+            <section class="mb-4" aria-labelledby="user-albums-heading">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 id="user-albums-heading" class="h5 mb-0 text-white fw-semibold">Album của tôi</h2>
+                    <a href="/albums" class="btn btn-secondary btn-sm">Xem tất cả album &rarr;</a>
+                </div>
+
+                <% if (albums && albums.length > 0) { %>
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3">
+                        <% albums.forEach(function(album) { %>
+                            <div class="col">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h3 class="h6 card-title mb-0 text-truncate">
+                                                <a href="/albums/<%= album.id %>" class="text-white text-decoration-none"><%= album.title %></a>
+                                            </h3>
+                                            <% if (album.is_public) { %>
+                                                <span class="badge-public">Công khai</span>
+                                            <% } else { %>
+                                                <span class="badge-private">Riêng tư</span>
+                                            <% } %>
+                                        </div>
+                                        <p class="card-text text-muted small text-truncate mb-3">
+                                            <%= album.description || 'Không có mô tả' %>
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center pt-2 border-top border-secondary border-opacity-25 small text-muted">
+                                            <span><%= album.photo_count || 0 %> ảnh</span>
+                                            <a href="/albums/<%= album.id %>" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.75rem;">Mở album</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } else { %>
+                    <div class="card p-4 text-center">
+                        <p class="text-muted mb-2">Chưa có album nào.</p>
+                        <div>
+                            <a href="/albums/create" class="btn btn-outline-primary btn-sm">Tạo album mới</a>
+                        </div>
+                    </div>
+                <% } %>
+            </section>
+
+        <% } else { %>
+            <!-- GUEST SHOWCASE & LANDING VIEW -->
+            <div class="hero-lumina text-center my-4">
+                <div class="d-inline-flex align-items-center gap-2 mb-3 px-3 py-1 rounded-pill bg-primary bg-opacity-20 border border-primary border-opacity-50 text-white small">
+                    <span class="badge bg-primary">Đề tài 31</span>
+                    <span>Hệ thống Thư viện Ảnh / Image Gallery Studio</span>
+                </div>
+                <h1 class="display-5 fw-bold text-white mb-3">Lưu trữ, Quản lý &amp; Chia sẻ Tác phẩm Ảnh</h1>
+                <p class="lead text-secondary mx-auto mb-4" style="max-width: 720px;">
+                    Hệ thống thư viện ảnh chuyên nghiệp với công nghệ Node.js, Express, Sharp, MySQL và kiến trúc container Docker Compose. Tối ưu hoá cho hiệu năng cao và bảo mật nghiêm ngặt.
+                </p>
+                <div class="d-flex justify-content-center gap-3 mb-4">
+                    <a href="/register" class="btn btn-primary btn-lg px-4">Tạo tài khoản miễn phí</a>
+                    <a href="/login" class="btn btn-secondary btn-lg px-4">Đăng nhập Studio</a>
+                </div>
+            </div>
+
+            <!-- Public Showcase -->
+            <% if (recentPhotos && recentPhotos.length > 0) { %>
+                <section class="mb-5" aria-labelledby="showcase-heading">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 id="showcase-heading" class="h5 mb-0 text-white fw-semibold">Tác phẩm nổi bật trong thư viện</h2>
+                        <a href="/photos" class="btn btn-secondary btn-sm">Duyệt tất cả ảnh &rarr;</a>
+                    </div>
+                    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-6 g-3">
+                        <% recentPhotos.forEach(function(photo) { %>
+                            <div class="col">
+                                <div class="card h-100">
+                                    <a href="/photos/<%= photo.id %>" class="d-block overflow-hidden" style="height: 180px;">
+                                        <img src="<%= photo.thumbnailPath %>" 
+                                             class="card-img-top w-100 h-100" 
+                                             alt="<%= photo.title %>" 
+                                             loading="lazy">
+                                    </a>
+                                    <div class="card-body p-2">
+                                        <h3 class="h6 mb-0 text-truncate">
+                                            <a href="/photos/<%= photo.id %>" class="text-white text-decoration-none small"><%= photo.title %></a>
+                                        </h3>
+                                        <small class="text-muted"><%= photo.username %></small>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }); %>
+                    </div>
+                </section>
             <% } %>
-        </div>
-    </div>
-    <footer class="bg-dark text-center text-white py-3">
-        <div class="container">
-            <p class="mb-0">&copy; <%= new Date().getFullYear() %> Image Gallery.</p>
-        </div>
-    </footer>
+        <% } %>
+    </main>
+
+    <%- include('../partials/slideshow') %>
+    <%- include('../partials/footer') %>
+    <script src="/js/gallery.js" defer></script>
 </body>
 </html>

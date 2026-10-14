@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const photoController = require('../controllers/photoController');
 const albumController = require('../controllers/albumController');
+const db = require('../db');
 
 // API Health Check
 router.get('/health', (req, res) => {
@@ -18,15 +19,17 @@ router.get('/health', (req, res) => {
 // API Routes for Albums
 router.get('/albums', (req, res) => {
   const query = `
-    SELECT a.id, a.title, a.description, a.is_public, COUNT(p.id) as photo_count
+    SELECT a.id, a.title, a.description, a.is_public,
+           COUNT(CASE WHEN p.is_public = TRUE OR a.user_id = ? THEN p.id END) as photo_count
     FROM albums a
     LEFT JOIN photos p ON a.id = p.album_id
-    WHERE a.is_public = TRUE OR a.user_id = ?
+    WHERE a.is_public = TRUE OR a.user_id = ? OR ? = ?
     GROUP BY a.id
     ORDER BY a.created_at DESC
   `;
   
-  req.app.get('db').query(query, [req.user ? req.user.id : -1], (err, results) => {
+  const userId = req.user ? req.user.id : -1;
+  db.query(query, [userId, userId, req.user ? req.user.role : '', 'admin'], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
@@ -35,16 +38,20 @@ router.get('/albums', (req, res) => {
 // API Routes for Photos
 router.get('/photos', (req, res) => {
   const query = `
-    SELECT p.id, p.title, p.filename, p.path, p.is_public, u.username, a.title as album_title
+    SELECT p.id, p.title, p.is_public, u.username, a.title as album_title
     FROM photos p
     JOIN users u ON p.user_id = u.id
     LEFT JOIN albums a ON p.album_id = a.id
-    WHERE p.is_public = TRUE OR p.user_id = ?
+    WHERE (p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ? OR ? = ?
     ORDER BY p.created_at DESC
   `;
   
-  req.app.get('db').query(query, [req.user ? req.user.id : -1], (err, results) => {
+  db.query(query, [req.user ? req.user.id : -1, req.user ? req.user.role : '', 'admin'], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
+    results.forEach(photo => {
+      photo.thumbnail_url = `/photos/${photo.id}/thumbnail`;
+      photo.url = `/photos/${photo.id}/original`;
+    });
     res.json(results);
   });
 });

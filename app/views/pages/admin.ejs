@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <%- include('../partials/head', { title: 'Bảng Quản trị Hệ thống' }) %>
+</head>
+<body>
+    <%- include('../partials/navbar', { user }) %>
+
+    <main class="container-fluid px-3 px-lg-4 my-4">
+        <!-- Admin Header -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 pb-3 mb-4 border-bottom border-secondary border-opacity-25">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1 small text-muted font-monospace">
+                        <li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Lumina</a></li>
+                        <li class="breadcrumb-item active text-danger" aria-current="page">Admin Control</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 fw-bold mb-1 text-white">Quản trị Hệ thống / Admin Dashboard</h1>
+                <p class="text-muted mb-0 small">Giám sát tài nguyên, quản lý tài khoản thành viên và kiểm duyệt nội dung.</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="/albums" class="btn btn-secondary btn-sm">Quay lại Thư viện</a>
+            </div>
+        </div>
+
+        <% (messages?.error || []).forEach(function(message) { %>
+            <div class="alert alert-danger"><%= message %></div>
+        <% }); %>
+        <% (messages?.success || []).forEach(function(message) { %>
+            <div class="alert alert-success"><%= message %></div>
+        <% }); %>
+
+        <% if (stats.missingFiles) { %>
+            <div class="alert alert-warning"><%= stats.missingFiles %> file ảnh vật lý đang bị thiếu trong thư mục uploads.</div>
+        <% } %>
+
+        <!-- Stats Grid -->
+        <section class="row g-3 mb-4" aria-label="Thống kê hệ thống">
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card">
+                    <div class="stat-label mb-1">Tài khoản</div>
+                    <div class="stat-number text-primary"><%= stats.userCount %></div>
+                    <small class="text-muted">Tổng số người dùng</small>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card">
+                    <div class="stat-label mb-1">Bộ sưu tập</div>
+                    <div class="stat-number text-info"><%= stats.albumCount %></div>
+                    <small class="text-muted">Tổng số Album</small>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card">
+                    <div class="stat-label mb-1">Tác phẩm ảnh</div>
+                    <div class="stat-number text-success"><%= stats.photoCount %></div>
+                    <small class="text-muted">Tổng số ảnh trong DB</small>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="stat-card">
+                    <div class="stat-label mb-1">Dung lượng ổ đĩa</div>
+                    <div class="stat-number text-warning"><%= (stats.storageBytes / 1024 / 1024).toFixed(2) %> MB</div>
+                    <small class="text-muted">Dung lượng uploads vật lý</small>
+                </div>
+            </div>
+        </section>
+
+        <!-- User Accounts Table -->
+        <section class="card mb-4" aria-labelledby="users-heading">
+            <div class="card-header">
+                <h2 id="users-heading" class="h6 mb-0 text-white fw-semibold">Quản lý Tài khoản Người dùng</h2>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Tài khoản</th>
+                            <th>Vai trò</th>
+                            <th>Số Albums</th>
+                            <th>Số Ảnh</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% users.forEach(function(account) { %>
+                            <tr>
+                                <td>
+                                    <strong class="text-white"><%= account.username %></strong><br>
+                                    <small class="text-muted font-monospace"><%= account.email %></small>
+                                </td>
+                                <td>
+                                    <span class="badge <%= account.role === 'admin' ? 'bg-danger' : 'bg-secondary' %>">
+                                        <%= account.role %>
+                                    </span>
+                                </td>
+                                <td class="font-monospace"><%= account.album_count %></td>
+                                <td class="font-monospace"><%= account.photo_count %></td>
+                                <td>
+                                    <% if (account.is_locked) { %>
+                                        <span class="badge bg-danger">Đã khóa</span>
+                                    <% } else { %>
+                                        <span class="badge bg-success">Hoạt động</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% if (account.id != user.id) { %>
+                                        <form action="/admin/users/<%= account.id %>/<%= account.is_locked ? 'unlock' : 'lock' %>" method="POST" onsubmit="return confirm('Bạn có chắc muốn thay đổi trạng thái tài khoản này?');">
+                                            <button type="submit" class="btn btn-sm <%= account.is_locked ? 'btn-success' : 'btn-outline-danger' %> py-0 px-2" style="font-size: 0.8rem;">
+                                                <%= account.is_locked ? 'Mở khóa' : 'Khóa tài khoản' %>
+                                            </button>
+                                        </form>
+                                    <% } else { %>
+                                        <span class="text-muted small">Tài khoản hiện tại</span>
+                                    <% } %>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Recent Content Management -->
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <section class="card h-100" aria-labelledby="admin-albums-heading">
+                    <div class="card-header">
+                        <h2 id="admin-albums-heading" class="h6 mb-0 text-white fw-semibold">Album mới nhất</h2>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Album</th>
+                                    <th>Chủ sở hữu</th>
+                                    <th>Quyền</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% albums.forEach(function(album) { %>
+                                    <tr>
+                                        <td><a href="/albums/<%= album.id %>" class="text-white text-decoration-none small fw-semibold"><%= album.title %></a></td>
+                                        <td class="small text-muted"><%= album.username %></td>
+                                        <td>
+                                            <% if (album.is_public) { %>
+                                                <span class="badge-public">Công khai</span>
+                                            <% } else { %>
+                                                <span class="badge-private">Riêng tư</span>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <form action="/admin/albums/<%= album.id %>/delete" method="POST" onsubmit="return confirm('Xóa album này và toàn bộ ảnh bên trong?');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.75rem;">Gỡ bỏ</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-lg-6">
+                <section class="card h-100" aria-labelledby="admin-photos-heading">
+                    <div class="card-header">
+                        <h2 id="admin-photos-heading" class="h6 mb-0 text-white fw-semibold">Ảnh mới nhất</h2>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Tác phẩm</th>
+                                    <th>Người đăng</th>
+                                    <th>Album</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% photos.forEach(function(photo) { %>
+                                    <tr>
+                                        <td><a href="/photos/<%= photo.id %>" class="text-white text-decoration-none small fw-semibold text-truncate d-inline-block" style="max-width: 140px;"><%= photo.title %></a></td>
+                                        <td class="small text-muted"><%= photo.username %></td>
+                                        <td class="small text-muted"><%= photo.album_id || 'Ảnh rời' %></td>
+                                        <td>
+                                            <form action="/admin/photos/<%= photo.id %>/delete" method="POST" onsubmit="return confirm('Xóa ảnh này khỏi hệ thống?');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.75rem;">Gỡ bỏ</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+</body>
+</html>

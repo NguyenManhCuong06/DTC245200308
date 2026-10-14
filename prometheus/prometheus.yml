@@ -2,18 +2,9 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
-alerting:
-  alertmanagers:
-    - static_configs:
-        - targets:
-          - alertmanager:9093
-
-rule_files:
-  - "alert_rules/*.yml"
-
 scrape_configs:
-  # Docker Daemon
-  - job_name: 'docker'
+  # cAdvisor (Container metrics)
+  - job_name: 'cadvisor'
     static_configs:
       - targets: ['cadvisor:8080']
 
@@ -32,14 +23,12 @@ scrape_configs:
     static_configs:
       - targets: ['web:3000']
 
+  # Nginx stub_status via nginx-prometheus-exporter
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-prometheus-exporter:9113']
+
   # Prometheus self-monitoring
   - job_name: 'prometheus'
     static_configs:
       - targets: ['prometheus:9090']
-
-  # Docker daemon metrics
-  - job_name: 'docker-daemon'
-    static_configs:
-      - targets: ['host.docker.internal:9323']
-    metrics_path: '/metrics'
-    scrape_interval: 5s

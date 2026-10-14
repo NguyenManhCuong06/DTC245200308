@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <%- include('../partials/head', { title: 'Lỗi - ' + status }) %>
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <%- include('../partials/navbar', { user: typeof user !== 'undefined' ? user : null }) %>
+
+    <main class="container my-auto py-5 d-flex align-items-center justify-content-center">
+        <div class="card shadow-lg auth-card text-center p-5">
+            <h1 class="display-3 fw-bold text-danger mb-2"><%= status %></h1>
+            <h2 class="h5 text-white mb-2"><%= title %></h2>
+            <p class="text-muted small mb-4"><%= message %></p>
+            <div>
+                <a href="/" class="btn btn-primary px-4">Quay về Trang chủ</a>
+            </div>
+        </div>
+    </main>
+
+    <%- include('../partials/footer') %>
+</body>
+</html>
