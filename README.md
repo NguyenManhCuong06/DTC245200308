@@ -41,7 +41,7 @@ Hệ thống Thư viện Ảnh / Gallery là ứng dụng web quản lý album �
 - Trang quản trị
 ## Kiến trúc hệ thống
 
-````mermaid
+```mermaid
 flowchart TD
   User[Người dùng] --> Nginx[Nginx Reverse Proxy]
   Nginx --> Web[Web App Node.js/Express/EJS]
@@ -58,7 +58,6 @@ flowchart TD
   Grafana --> Loki
   phpMyAdmin[phpMyAdmin] --> DB
 ```
-
 ## Công nghệ sử dụng
 
 | Công nghệ | Phiên bản | Vai trò |
@@ -72,7 +71,7 @@ flowchart TD
 
 ## Cấu trúc thư mục
 
-``text
+```text
 D:\Gallery
 ├── app/                # Ứng dụng Node.js/Express
 ├── db/init-scripts/    # init.sql, seed-demo.js, grant scripts
@@ -84,7 +83,7 @@ D:\Gallery
 ├── healthcheck/        # Custom healthcheck probe
 ├── docs/               # Tài liệu
 └── docker-compose.yml  # Orchestration
-``
+```
 
 ## Yêu cầu môi trường
 
@@ -94,7 +93,7 @@ D:\Gallery
 
 ## Cài đặt và khởi chạy
 
-````bash
+```bash
 git clone https://github.com/NguyenManhCuong06/DTC245200308.git
 cd DTC245200308
 cp .env.example .env
@@ -102,7 +101,7 @@ cp .env.example .env
 docker compose up -d --build
 docker compose ps
 docker compose exec -T web node /app/db/init-scripts/seed-demo.js  # tùy chọn
-``
+```
 
 ## Truy cập dịch vụ
 
@@ -133,13 +132,27 @@ Tất cả dịch vụ healthy; truy cập Gallery qua HTTPS, phpMyAdmin, Promet
 
 ## Git workflow và đóng góp
 
-````bash
+```bash
 git checkout -b feature/ten-tinh-nang
 git add .
 git commit -m "feat: mo ta thay doi"
 git push origin feature/ten-tinh-nang
-``
+```
 
+
+## Backup và khôi phục
+
+- Sao lưu cơ sở dữ liệu:
+  ```bash
+  docker compose exec -T db mysqldump -u app_user -p gallery_db > gallery-db-$(date +%F).sql
+  ```
+- Sao lưu thư mục upload runtime:
+  ```bash
+  cp -r app/public/uploads /backup/gallery-uploads
+  ```
+- Khôi phục chỉ thực hiện trên cùng schema/version database và dữ liệu đã dừng an toàn.
+- Không đưa `.env`, uploads runtime, cert hoặc log vào Git.
+- `SESSION_SECRET` phải có ít nhất 32 ký tự và chỉ cung cấp qua biến môi trường.
 
 ## Hạn chế và hướng phát triển
 

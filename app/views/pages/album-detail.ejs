@@ -57,7 +57,7 @@
                         <span>+ Thêm ảnh</span>
                     </a>
                     <a href="/albums/<%= album.id %>/edit" class="btn btn-secondary btn-sm">Sửa album</a>
-                    <form action="/albums/<%= album.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa album này?');">
+                    <form action="/albums/<%= album.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa album này?');"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                         <button type="submit" class="btn btn-outline-danger btn-sm">Xóa album</button>
                     </form>
                 <% } %>
@@ -92,7 +92,7 @@
                         </svg>
                         <span>Liên kết chia sẻ khách (Shared Links &amp; Public Access)</span>
                     </h2>
-                    <form action="/albums/<%= album.id %>/shares" method="POST" class="d-flex align-items-center gap-2">
+                    <form action="/albums/<%= album.id %>/shares" method="POST" class="d-flex align-items-center gap-2"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                         <label for="share-expiry" class="small text-muted mb-0">Thời hạn:</label>
                         <select id="share-expiry" name="expires_in_days" class="form-select form-select-sm w-auto">
                             <option value="1">1 ngày</option>
@@ -124,7 +124,7 @@
                                             <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 me-1" style="font-size: 0.75rem;" onclick="navigator.clipboard.writeText(window.location.origin + '/share/<%= link.token %>'); alert('Đã sao chép link chia sẻ vào clipboard!');">
                                                 Sao chép link
                                             </button>
-                                            <form action="/albums/<%= album.id %>/shares/<%= link.id %>/revoke" method="POST" class="d-inline" onsubmit="return confirm('Thu hồi quyền truy cập của liên kết này?');">
+                                            <form action="/albums/<%= album.id %>/shares/<%= link.id %>/revoke" method="POST" class="d-inline" onsubmit="return confirm('Thu hồi quyền truy cập của liên kết này?');"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.75rem;">Thu hồi</button>
                                             </form>
                                         <% } %>
@@ -184,7 +184,7 @@
                                     <div class="d-flex gap-1">
                                         <% if (user && (album.user_id == user.id || user.role === 'admin')) { %>
                                             <a href="/photos/<%= photo.id %>/edit" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.8rem;">Sửa</a>
-                                            <form action="/photos/<%= photo.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Xóa ảnh này khỏi album?');">
+                                            <form action="/photos/<%= photo.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Xóa ảnh này khỏi album?');"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.8rem;">Xóa</button>
                                             </form>
                                         <% } %>

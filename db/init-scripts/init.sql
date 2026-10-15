@@ -65,3 +65,11 @@ CREATE TABLE IF NOT EXISTS share_links (
     FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Session storage for express-session
+CREATE TABLE IF NOT EXISTS sessions (
+    sid VARCHAR(128) PRIMARY KEY,
+    sess MEDIUMTEXT NOT NULL,
+    expired DATETIME NOT NULL,
+    INDEX idx_sessions_expired (expired)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

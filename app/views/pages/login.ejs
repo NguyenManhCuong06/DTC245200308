@@ -27,7 +27,7 @@
                 <div class="alert alert-success py-2 small"><%= message %></div>
             <% }); %>
 
-            <form action="/login" method="POST">
+            <form action="/login" method="POST"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <div class="mb-3">
                     <label class="form-label" for="email">Địa chỉ Email</label>
                     <input id="email" type="email" name="email" class="form-control" placeholder="nhap@email.com" required autofocus>

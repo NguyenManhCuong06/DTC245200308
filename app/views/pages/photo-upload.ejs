@@ -30,7 +30,7 @@
         <% }); %>
 
         <div class="card p-4">
-            <form action="/photos/upload" method="POST" enctype="multipart/form-data" id="uploadForm">
+            <form action="/photos/upload" method="POST" enctype="multipart/form-data" id="uploadForm"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <!-- Dropzone Area -->
                 <div class="upload-dropzone mb-3" id="uploadDropzone">
                     <div class="upload-dropzone-icon">

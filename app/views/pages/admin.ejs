@@ -107,7 +107,7 @@
                                 </td>
                                 <td>
                                     <% if (account.id != user.id) { %>
-                                        <form action="/admin/users/<%= account.id %>/<%= account.is_locked ? 'unlock' : 'lock' %>" method="POST" onsubmit="return confirm('Bạn có chắc muốn thay đổi trạng thái tài khoản này?');">
+                                        <form action="/admin/users/<%= account.id %>/<%= account.is_locked ? 'unlock' : 'lock' %>" method="POST" onsubmit="return confirm('Bạn có chắc muốn thay đổi trạng thái tài khoản này?');"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                             <button type="submit" class="btn btn-sm <%= account.is_locked ? 'btn-success' : 'btn-outline-danger' %> py-0 px-2" style="font-size: 0.8rem;">
                                                 <%= account.is_locked ? 'Mở khóa' : 'Khóa tài khoản' %>
                                             </button>
@@ -153,7 +153,7 @@
                                             <% } %>
                                         </td>
                                         <td>
-                                            <form action="/admin/albums/<%= album.id %>/delete" method="POST" onsubmit="return confirm('Xóa album này và toàn bộ ảnh bên trong?');">
+                                            <form action="/admin/albums/<%= album.id %>/delete" method="POST" onsubmit="return confirm('Xóa album này và toàn bộ ảnh bên trong?');"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.75rem;">Gỡ bỏ</button>
                                             </form>
                                         </td>
@@ -187,7 +187,7 @@
                                         <td class="small text-muted"><%= photo.username %></td>
                                         <td class="small text-muted"><%= photo.album_id || 'Ảnh rời' %></td>
                                         <td>
-                                            <form action="/admin/photos/<%= photo.id %>/delete" method="POST" onsubmit="return confirm('Xóa ảnh này khỏi hệ thống?');">
+                                            <form action="/admin/photos/<%= photo.id %>/delete" method="POST" onsubmit="return confirm('Xóa ảnh này khỏi hệ thống?');"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.75rem;">Gỡ bỏ</button>
                                             </form>
                                         </td>

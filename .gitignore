@@ -84,3 +84,16 @@ app/public/uploads/*
 
 # Utility scripts (one-time use)
 download_photos.js
+# Internal audit and coursework working documents (keep local only; do not publish)
+docs/Bao_cao_De_tai_31_Gallery.md
+docs/Bao_cao_De_tai_31_Gallery.docx
+docs/full-main-audit-report.md
+docs/main-file-inventory.md
+docs/final-verification-report.md
+docs/main-branch-verification-report.md
+docs/full-project-audit.md
+docs/rubric-compliance.md
+docs/evidence/README.txt
+# SSL Certs (ignore generated certs, keep README)
+nginx/certs/
+!nginx/certs/README.md

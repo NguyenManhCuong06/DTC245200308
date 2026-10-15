@@ -6,13 +6,20 @@ const db = require('../db');
 
 // API Health Check
 router.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    services: {
-      database: 'connected',
-      uploads: 'enabled'
+  db.query('SELECT 1 AS health', (err) => {
+    if (err) {
+      return res.status(503).json({
+        status: 'unhealthy',
+        timestamp: new Date().toISOString()
+      });
     }
+
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+      uploads: 'readonly-check-skipped'
+    });
   });
 });
 
@@ -56,13 +63,13 @@ router.get('/photos', (req, res) => {
   });
 });
 
-// API Metrics endpoint
+// API Metrics endpoint is deprecated in favour of app-level Prometheus metrics.
 router.get('/metrics', (req, res) => {
-  const metrics = {
-    'http_requests_total': 1,
-    'active_sessions': 1
-  };
-  res.json(metrics);
+  res.status(410).json({
+    error: 'Deprecated endpoint',
+    timestamp: new Date().toISOString(),
+    location: '/metrics'
+  });
 });
 
 module.exports = router;

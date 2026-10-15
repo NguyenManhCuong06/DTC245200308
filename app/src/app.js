@@ -99,6 +99,14 @@ app.locals.metrics = {
 const db = require('./db');
 app.set('db', db);
 
+const requiredSecretLength = 32;
+if (process.env.NODE_ENV === 'production' && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < requiredSecretLength)) {
+  throw new Error('SESSION_SECRET must be at least ' + requiredSecretLength + ' characters in production');
+}
+
+const MySQLSessionStore = require('./sessionStore');
+const sessionStore = new MySQLSessionStore(db);
+
 const startServer = () => {
   db.query('SELECT 1', (err) => {
     if (err) {
@@ -127,13 +135,21 @@ app.use(fileUpload({
   responseOnLimit: 'Upload limit exceeded'
 }));
 
+// CSRF protection for state-changing same-origin requests
+app.use(require('./middleware/csrf'));
+
 // Session configuration
 app.use(session({
+  name: 'gallery.sid',
   secret: process.env.SESSION_SECRET,
+  store: sessionStore,
   resave: false,
   saveUninitialized: false,
-  cookie: { 
+  rolling: true,
+  cookie: {
+    httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
     maxAge: 24 * 60 * 60 * 1000
   }
 }));
@@ -192,6 +208,25 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: status >= 500 ? 'The request could not be completed.' : err.message });
 });
 
-startServer();
+function ensureSchema() {
+  const createSessionsTable = [
+    'CREATE TABLE IF NOT EXISTS sessions (',
+    '  sid VARCHAR(128) PRIMARY KEY,',
+    '  sess MEDIUMTEXT NOT NULL,',
+    '  expired DATETIME NOT NULL,',
+    '  INDEX idx_sessions_expired (expired)',
+    ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+  ].join('\n');
+
+  db.query(createSessionsTable, (err) => {
+    if (err) {
+      console.error('Unable to initialize session table:', err.message);
+      process.exit(1);
+    }
+    startServer();
+  });
+}
+
+ensureSchema();
 
 module.exports = { app, db };

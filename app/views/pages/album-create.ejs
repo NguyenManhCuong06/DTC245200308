@@ -29,7 +29,7 @@
         <% }); %>
 
         <div class="card p-4">
-            <form action="/albums" method="POST">
+            <form action="/albums" method="POST"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <div class="mb-3">
                     <label class="form-label" for="title">Tên Album / Tiêu đề bộ sưu tập *</label>
                     <input id="title" type="text" name="title" class="form-control" placeholder="Ví dụ: Kỷ yếu 2026, Mùa thu Hà Nội..." required autofocus>

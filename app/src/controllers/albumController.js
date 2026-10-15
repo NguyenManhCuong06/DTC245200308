@@ -1,4 +1,8 @@
 const db = require('../db');
+const path = require('path');
+const fs = require('fs');
+const uploadDirectory = path.join(__dirname, '../../public/uploads');
+
 const notFound = (res) => res.status(404).render('pages/404', { title: 'Album not found' });
 
 const albumController = {
@@ -192,20 +196,68 @@ const albumController = {
     );
   },
 
-  deleteAlbum: (req, res) => {
+  deleteAlbum: async (req, res) => {
     if (!req.user) {
       return res.redirect('/login');
     }
 
-    const query = 'DELETE FROM albums WHERE id = ? AND user_id = ?';
-    db.query(query, [req.params.id, req.user.id], (err, result) => {
-      if (err) {
-        return res.status(500).send('Unable to delete album');
+    let connection;
+    let storedPaths = [];
+    try {
+      connection = await db.promise().getConnection();
+      await connection.beginTransaction();
+
+      const [albums] = await connection.query(
+        'SELECT id FROM albums WHERE id = ? AND user_id = ?',
+        [req.params.id, req.user.id]
+      );
+      if (!albums.length) {
+        await connection.rollback();
+        return notFound(res);
       }
-      if (!result.affectedRows) return notFound(res);
+
+      const [photos] = await connection.query(
+        'SELECT path, thumbnail_path FROM photos WHERE album_id = ?',
+        [req.params.id]
+      );
+      storedPaths = photos.flatMap((photo) => [photo.path, photo.thumbnail_path]);
+
+      await connection.query('DELETE FROM photos WHERE album_id = ?', [req.params.id]);
+      const [result] = await connection.query(
+        'DELETE FROM albums WHERE id = ? AND user_id = ?',
+        [req.params.id, req.user.id]
+      );
+      if (!result.affectedRows) {
+        await connection.rollback();
+        return notFound(res);
+      }
+
+      await connection.commit();
+      await Promise.all(storedPaths.filter(Boolean).map(async (storedPath) => {
+        const fileName = path.basename(storedPath);
+        if (!storedPath.startsWith('/uploads/') || fileName !== storedPath.slice('/uploads/'.length)) {
+          throw new Error('Invalid stored media path');
+        }
+        try {
+          await fs.promises.unlink(path.join(uploadDirectory, fileName));
+        } catch (error) {
+          if (error.code !== 'ENOENT') throw error;
+        }
+      }));
+
       req.flash('success', 'Album deleted successfully');
       res.redirect('/albums');
-    });
+    } catch (error) {
+      if (connection) {
+        try { await connection.rollback(); } catch (rollbackError) {
+          console.error('Unable to roll back album deletion:', rollbackError.message);
+        }
+      }
+      console.error('Unable to delete album:', error.message);
+      res.status(500).send('Unable to delete album');
+    } finally {
+      if (connection) connection.release();
+    }
   }
 };
 

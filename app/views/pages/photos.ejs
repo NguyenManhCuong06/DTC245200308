@@ -141,7 +141,7 @@
                                     <div class="d-flex gap-1">
                                         <% if (user && (photo.user_id == user.id || user.role === 'admin')) { %>
                                             <a href="/photos/<%= photo.id %>/edit" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.8rem;">Sửa</a>
-                                            <form action="/photos/<%= photo.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa ảnh này?');">
+                                            <form action="/photos/<%= photo.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa ảnh này?');"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.8rem;">Xóa</button>
                                             </form>
                                         <% } %>

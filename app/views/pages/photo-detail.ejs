@@ -73,7 +73,7 @@
                                 <span class="badge-tag d-inline-flex align-items-center">
                                     <a href="/photos?tag=<%= encodeURIComponent(tag.name) %>" class="text-decoration-none text-reset">#<%= tag.name %></a>
                                     <% if (user && (photo.user_id == user.id || user.role === 'admin')) { %>
-                                        <form action="/photos/<%= photo.id %>/tags/<%= tag.id %>/remove" method="POST" class="d-inline ms-1">
+                                        <form action="/photos/<%= photo.id %>/tags/<%= tag.id %>/remove" method="POST" class="d-inline ms-1"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                             <button type="submit" class="border-0 bg-transparent text-danger p-0 ms-1 fw-bold" style="font-size: 0.8rem; line-height: 1;" title="Xóa thẻ">&times;</button>
                                         </form>
                                     <% } %>
@@ -82,7 +82,7 @@
                         </div>
 
                         <% if (user && (photo.user_id == user.id || user.role === 'admin')) { %>
-                            <form action="/photos/<%= photo.id %>/tags" method="POST" class="input-group input-group-sm mt-2">
+                            <form action="/photos/<%= photo.id %>/tags" method="POST" class="input-group input-group-sm mt-2"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                 <span class="input-group-text bg-dark border-secondary text-muted">#</span>
                                 <input name="tag_name" class="form-control" placeholder="Thêm thẻ mới..." maxlength="50" required>
                                 <button type="submit" class="btn btn-outline-primary">+ Thêm</button>
@@ -125,7 +125,7 @@
                         <% if (user && (photo.user_id == user.id || user.role === 'admin')) { %>
                             <div class="d-flex gap-2">
                                 <a href="/photos/<%= photo.id %>/edit" class="btn btn-secondary btn-sm flex-grow-1">Chỉnh sửa thông tin</a>
-                                <form action="/photos/<%= photo.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa ảnh này vĩnh viễn?');">
+                                <form action="/photos/<%= photo.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa ảnh này vĩnh viễn?');"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                     <button type="submit" class="btn btn-outline-danger btn-sm">Xóa ảnh</button>
                                 </form>
                             </div>
