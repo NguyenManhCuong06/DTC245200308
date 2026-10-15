@@ -5,6 +5,8 @@ global:
 scrape_configs:
   # cAdvisor (Container metrics)
   - job_name: 'cadvisor'
+    scrape_interval: 45s
+    scrape_timeout: 45s
     static_configs:
       - targets: ['cadvisor:8080']
 
