@@ -1,5 +1,5 @@
 ﻿# Hệ thống Thư viện Ảnh / Gallery - DevOps Final Project
-
+[![Project-Gallery-blue](https://img.shields.io/badge/Project-Gallery-blue)](https://github.com/NguyenManhCuong06/DTC245200308)
 [![Node.js](https://img.shields.io/badge/Node.js-20.20.2-alpine-green.svg)](https://nodejs.org/)
 [![Express.js](https://img.shields.io/badge/Express.js-4.x-lightgrey.svg)](https://expressjs.com/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0.46-blue.svg)](https://www.mysql.com/)
