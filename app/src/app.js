@@ -109,14 +109,21 @@ const MySQLSessionStore = require('./sessionStore');
 const sessionStore = new MySQLSessionStore(db);
 
 const startServer = () => {
-  db.query('SELECT 1', (err) => {
+  // Read-only readiness probe. The runtime account is intentionally DML-only,
+  // so the sessions table must be created by db/init-scripts/init.sql.
+  db.query('SELECT 1 FROM sessions LIMIT 0', (err) => {
     if (err) {
+      if (err.code === 'ER_NO_SUCH_TABLE' || err.code === 'ER_TABLEACCESS_DENIED_ERROR' || err.code === 'ER_DBACCESS_DENIED_ERROR') {
+        console.error('Session schema is not ready:', err.message);
+        console.error('Apply db/init-scripts/init.sql with a privileged account before starting the app.');
+        process.exit(1);
+      }
       console.error('Database connection error:', err.message);
       setTimeout(startServer, 1000);
       return;
     }
 
-    console.log('Connected to MySQL database');
+    console.log('Connected to MySQL database; session schema ready');
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
@@ -211,25 +218,8 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: status >= 500 ? 'The request could not be completed.' : err.message });
 });
 
-function ensureSchema() {
-  const createSessionsTable = [
-    'CREATE TABLE IF NOT EXISTS sessions (',
-    '  sid VARCHAR(128) PRIMARY KEY,',
-    '  sess MEDIUMTEXT NOT NULL,',
-    '  expired DATETIME NOT NULL,',
-    '  INDEX idx_sessions_expired (expired)',
-    ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
-  ].join('\n');
-
-  db.query(createSessionsTable, (err) => {
-    if (err) {
-      console.error('Unable to initialize session table:', err.message);
-      process.exit(1);
-    }
-    startServer();
-  });
-}
-
-ensureSchema();
+// Schema creation is handled once by db/init-scripts/init.sql. Startup only
+// verifies that the runtime account can read the sessions table.
+startServer();
 
 module.exports = { app, db };

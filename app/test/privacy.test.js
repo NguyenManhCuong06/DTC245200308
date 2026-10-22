@@ -50,11 +50,15 @@ test('guest tag overview does not expose photos that belong to a private album',
       LIMIT 5
     `);
     const [publicPhotos] = await connection.execute(`
+      -- Mirror the tag overview: only the 12 most recent visible, tagged photos render.
       SELECT p.id, p.title
       FROM photos p
+      JOIN photo_tags pt ON pt.photo_id = p.id
       LEFT JOIN albums a ON a.id = p.album_id
       WHERE p.is_public = 1 AND (a.id IS NULL OR a.is_public = 1)
-      LIMIT 5
+      GROUP BY p.id, p.title
+      ORDER BY p.created_at DESC
+      LIMIT 12
     `);
     return { privatePhotos, publicPhotos };
   });
