@@ -468,14 +468,20 @@ const photoController = {
   getTagsOverview: async (req, res) => {
     try {
       const userId = req.user ? req.user.id : -1;
+      const role = req.user ? req.user.role : '';
+      // A photo is visible only when both the photo and its album are public,
+      // or when the viewer owns the photo, or when the viewer is an admin.
+      const visiblePhoto = "((p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)) OR p.user_id = ? OR ? = 'admin')";
       const [tags] = await db.promise().query(`
-        SELECT t.id, t.name, COUNT(pt.photo_id) as photo_count
+        SELECT t.id, t.name, COUNT(p.id) as photo_count
         FROM tags t
-        LEFT JOIN photo_tags pt ON pt.tag_id = t.id
-        LEFT JOIN photos p ON p.id = pt.photo_id AND (p.is_public = TRUE OR p.user_id = ? OR ? = 'admin')
+        JOIN photo_tags pt ON pt.tag_id = t.id
+        JOIN photos p ON p.id = pt.photo_id
+        LEFT JOIN albums a ON a.id = p.album_id
+        WHERE ${visiblePhoto}
         GROUP BY t.id, t.name
         ORDER BY photo_count DESC, t.name ASC
-      `, [userId, req.user ? req.user.role : '']);
+      `, [userId, role]);
 
       const [recentPhotos] = await db.promise().query(`
         SELECT p.*, u.username, a.title as album_title,
@@ -484,11 +490,11 @@ const photoController = {
         JOIN users u ON p.user_id = u.id
         LEFT JOIN albums a ON a.id = p.album_id
         JOIN photo_tags pt ON pt.photo_id = p.id
-        WHERE p.is_public = TRUE OR p.user_id = ? OR ? = 'admin'
+        WHERE ${visiblePhoto}
         GROUP BY p.id
         ORDER BY p.created_at DESC
         LIMIT 12
-      `, [userId, req.user ? req.user.role : '']);
+      `, [userId, role]);
 
       recentPhotos.forEach(p => {
         p.path = `/photos/${p.id}/original`;
