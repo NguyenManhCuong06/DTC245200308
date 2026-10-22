@@ -19,6 +19,7 @@ if (missingEnvironment.length > 0) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.set('trust proxy', 1);
+app.disable('x-powered-by');
 
 // Ensure logs directory exists
 const logsDir = path.join(__dirname, 'logs');
@@ -182,7 +183,9 @@ app.use('/api', apiRoutes);
 app.get('/health', (req, res) => {
   db.query('SELECT 1 as health', (err) => {
     if (err) {
-      return res.status(503).json({ status: 'unhealthy', error: err.message });
+      // Never leak driver/connection details to unauthenticated callers.
+      console.error('Health check failed:', err.message);
+      return res.status(503).json({ status: 'unhealthy' });
     }
     res.json({ status: 'healthy', timestamp: new Date().toISOString() });
   });
