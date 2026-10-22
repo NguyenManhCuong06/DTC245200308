@@ -23,6 +23,8 @@
 - [Monitoring và Logging](#monitoring-và-logging)
 - [Bảo mật và Hardening](#bảo-mật-và-hardening)
 - [Kiểm thử và xác minh](#kiểm-thử-và-xác-minh)
+- [Minh chứng hình ảnh](#minh-chứng-hình-ảnh)
+- [Xử lý sự cố](#xử-lý-sự-cố)
 - [Git workflow và đóng góp](#git-workflow-và-đóng-góp)
 - [Hạn chế và hướng phát triển](#hạn-chế-và-hướng-phát-triển)
 - [Tác giả và tài liệu tham khảo](#tác-giả-và-tài-liệu-tham-khảo)
@@ -115,20 +117,110 @@ docker compose exec -T web node /app/db/init-scripts/seed-demo.js  # tùy chọn
 
 ## Monitoring và Logging
 
-- Prometheus scrape: cadvisor, node-exporter, mysqld-exporter, web (web:3000/metrics), nginx-prometheus-exporter, prometheus
-- Grafana: datasource Prometheus & Loki, 5 dashboard (container, db, nginx, web, logs)
-- Promtail: docker_sd_configs (project=gallery) + app/src/logs/*.log (job=application). LogQL mẫu: {container="nginx"}, {container="nginx"} |= " 404 ", {job="application"} | json | level=~"error|warn"
+- Prometheus scrape: cadvisor, node-exporter, mysqld-exporter, web (web:3000/metrics), nginx-prometheus-exporter, prometheus. Kiểm tra: `curl -s http://localhost:9090/api/v1/targets?state=active` → 6 target, tất cả `up`; `curl -s "http://localhost:9090/api/v1/query?query=mysql_up"` → `1`.
+- Grafana: datasource Prometheus & Loki, 5 dashboard (container, db, nginx, web, logs).
+- Promtail: `docker_sd_configs` (project=gallery) + file log của ứng dụng (`job="application"`). Positions lưu trong volume `promtail_data`; log container cũ hơn 24 giờ bị bỏ để tránh lỗi `entry too far behind` khi restart.
+- Nginx: `GET /metrics` bị chặn từ bên ngoài (`location = /metrics { return 403; }`), Prometheus scrape web qua mạng nội bộ.
+
+### Truy vấn LogQL mẫu (số liệu thật, cửa sổ 24 giờ, ghi ngày 23-10-2026)
+
+| Mục đích | Truy vấn | Số dòng |
+|---|---|---|
+| Tổng log mọi container | `sum(count_over_time({container=~".+"}[24h]))` | 17.388 |
+| Log HTTP của ứng dụng | `sum(count_over_time({container="web"} \|= "HTTP request" [24h]))` | 10.437 |
+| Log Nginx | `sum(count_over_time({container="nginx"}[24h]))` | 1.610 |
+| Lỗi mức error | `sum(count_over_time({job="application"} \| json \| level="error" [24h])) or vector(0)` | 0 |
+| HTTP 5xx của ứng dụng | `sum(count_over_time({container="web"} \| json \| status_code >= 500 [24h])) or vector(0)` | 3 (đều là `/health` 503 khi DB recreate) |
+| Dò lỗi đăng nhập | `{container="web"} \|= "login"` | xem trực tiếp trong Grafana Explore |
+
+```logql
+{container="web"} | json | status_code >= 500
+{container="nginx"} |= " 429 "
+{job="application"} | json | level=~"error|warn"
+```
 
 
 ## Bảo mật và Hardening
 
-Non-root containers, read_only FS + tmpfs, cap_drop ALL, no-new-privileges, internal networks (backend/monitoring), chỉ bind 127.0.0.1, .env không commit, quyền DB hạn chế, healthchecks, Nginx security headers + rate limiting.
+Đã áp dụng và kiểm chứng ngày 23-10-2026:
 
+- Session lưu trong MySQL (bảng `sessions`), cookie tên `gallery.sid`, `HttpOnly` + `SameSite=Strict` + `Secure` khi `NODE_ENV=production`; mọi thao tác thay đổi dữ liệu đều qua POST có CSRF.
+- Nginx: CSP, HSTS `includeSubDomains`, `Permissions-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`; ẩn `X-Powered-By`; rate limit `/login`, `/register` (5 request/phút, burst 5) và API (10 request/giây).
+- Container: web/nginx/loki/prometheus/promtail chạy read-only + tmpfs, `cap_drop: ALL`, `no-new-privileges`; chỉ Nginx publish 80/443, các cổng còn lại bind `127.0.0.1`, MySQL không publish ra host.
+- Log Docker xoay vòng `10m` × `3` file cho từng service.
+- `.env` không được Git theo dõi; `.env.example` chỉ chứa giá trị mẫu.
+
+Ngoại lệ đã kiểm tra thực tế (không ép cấu hình làm hỏng dịch vụ):
+
+- phpMyAdmin cần `chown` lúc entrypoint và Apache cần `setuid/setgid`, nên không thể `cap_drop: ALL`/`read_only`; bù lại service chỉ bind loopback và bật `no-new-privileges`.
+- Grafana cần filesystem ghi được cho plugin updater; vẫn giữ `cap_drop` và `no-new-privileges`.
+- CSP còn `'unsafe-inline'` cho `script-src`/`style-src` vì template EJS dùng inline script và thuộc tính `onclick`.
+- Quyền DB runtime của `app_user` hiện vẫn là `ALL PRIVILEGES` trên `gallery_db` (script khởi tạo chỉ định SELECT/INSERT/UPDATE/DELETE). Chưa thu hẹp vì cần phê duyệt thao tác trên DB đang chạy.
 
 ## Kiểm thử và xác minh
 
-Tất cả dịch vụ healthy; truy cập Gallery qua HTTPS, phpMyAdmin, Prometheus targets, Grafana dashboards, Loki+LogQL.
+```bash
+# 1. Cấu hình Compose hợp lệ
+docker compose config --quiet
 
+# 2. Trạng thái và healthcheck
+docker compose ps
+
+# 3. Test hồi quy chạy trong container (đọc DB + gọi HTTP thật, chỉ SELECT)
+docker compose exec -T web node --test test/
+
+# 4. Header bảo mật qua HTTPS
+curl -k -sS -D - -o NUL https://localhost/ | grep -Ei 'content-security|strict-transport|permissions-policy|x-powered-by'
+
+# 5. Rate limit đăng nhập (request thứ 6 trở đi trả 429)
+for i in $(seq 1 7); do curl -k -s -o /dev/null -w "%{http_code}\n" https://localhost/login; done
+
+# 6. Prometheus / Grafana
+curl -s http://localhost:9090/api/v1/targets?state=active
+curl -s "http://localhost:9090/api/v1/query?query=mysql_up"
+```
+
+Kết quả thực tế ngày 23-10-2026:
+
+| Hạng mục | Kết quả |
+|---|---|
+| `docker compose config --quiet` | exit 0 |
+| `docker compose ps` | 12/12 service `healthy` |
+| `node --test test/` trong container web | 7/7 PASS |
+| Kịch bản Playwright trên UI thật | 32/32 bước PASS (đăng ký, đăng nhập, album, upload, tag, tìm kiếm, chia sẻ/thu hồi, 403, 404, đăng xuất) |
+| Header HTTPS | Có CSP/HSTS/Permissions-Policy; không có `X-Powered-By` |
+| Rate limit `/login` | Trả 429 khi vượt ngưỡng (5r/m, burst 5) |
+| Prometheus | 6/6 target UP, `mysql_up=1` |
+| Grafana | 2 datasource OK, 5 dashboard |
+| Loki | Truy vấn LogQL trả dữ liệu thật (xem bảng phía trên) |
+
+## Minh chứng hình ảnh
+
+Ảnh chụp thực tế từ hệ thống đang chạy nằm trong `docs/screenshots/`:
+
+| File | Nội dung |
+|---|---|
+| `01-trang-chu.png` … `05-dang-ky.png` | Trang chủ, album, tag, đăng nhập, đăng ký |
+| `06-trang-chu-da-dang-nhap.png` … `10-tim-kiem.png` | Giao diện sau đăng nhập, chi tiết album/ảnh, tìm kiếm |
+| `11-tai-anh-len.png` … `13-quan-tri-admin.png` | Upload, trang 403, trang quản trị admin |
+| `14-album-kiem-thu.png` … `18-trang-chia-se-cong-khai.png` | Album kiểm thử, tag, kết quả tìm kiếm, quản lý và mở link chia sẻ |
+| `19-phpmyadmin.png` | phpMyAdmin, cấu trúc DB `gallery_db` |
+| `20-prometheus-targets.png` | Prometheus targets |
+| `21-grafana-danh-sach-dashboard.png` … `24-grafana-logs-loki.png` | Grafana dashboards và log Loki |
+
+## Xử lý sự cố
+
+| Hiện tượng | Nguyên nhân thường gặp | Cách xử lý |
+|---|---|---|
+| Web không lên, `docker compose ps` báo `unhealthy` | DB chưa sẵn sàng hoặc sai `DB_*` trong `.env` | `docker compose logs db web`; đợi healthcheck DB rồi `docker compose up -d web` |
+| Trình duyệt cảnh báo chứng chỉ | Chứng chỉ tự ký | Chấp nhận cảnh báo hoặc dùng `curl -k`; không dùng cho production |
+| `429 Too Many Requests` khi đăng nhập | Rate limit 5 request/phút | Đợi khoảng 1 phút rồi thử lại; không tắt rate limit khi demo |
+| `502 Bad Gateway` | Web container chưa healthy hoặc vừa restart | `docker compose ps`, `docker compose logs -n 100 web nginx` |
+| Grafana không có dữ liệu | Chọn sai khoảng thời gian hoặc Prometheus chưa scrape | Đặt time range 15-30 phút; kiểm tra `Targets` trong Prometheus |
+| Loki báo `entry too far behind` | Promtail đọc lại log cũ sau khi mất positions | Đã xử lý bằng volume `promtail_data` + bỏ log cũ hơn 24h; nếu vẫn thấy, kiểm tra volume còn mount đúng |
+| Upload báo lỗi 413 | File vượt giới hạn | Giới hạn 10 MB/ảnh trong `express-fileupload`, tối đa 10 file/lần |
+| Quên mật khẩu demo | Mật khẩu lấy từ `.env` | Xem `DEMO_ADMIN_PASSWORD`/`DEMO_USER_PASSWORD` trong `.env`, không commit giá trị thật |
+| phpMyAdmin không đăng nhập được | Sai user/password hoặc DB chưa healthy | Dùng `MYSQL_USER`/`MYSQL_PASSWORD` trong `.env`; kiểm tra `docker compose logs phpmyadmin` |
 
 ## Git workflow và đóng góp
 
@@ -139,24 +231,36 @@ git commit -m "feat: mo ta thay doi"
 git push origin feature/ten-tinh-nang
 ```
 
-
 ## Backup và khôi phục
 
-- Sao lưu cơ sở dữ liệu:
-  ```bash
-  docker compose exec -T db mysqldump -u app_user -p gallery_db > gallery-db-$(date +%F).sql
-  ```
-- Sao lưu thư mục upload runtime:
-  ```bash
-  cp -r app/public/uploads /backup/gallery-uploads
-  ```
-- Khôi phục chỉ thực hiện trên cùng schema/version database và dữ liệu đã dừng an toàn.
+```bash
+# Sao lưu toàn bộ database (root đọc từ biến môi trường của container, không lộ mật khẩu ra ps)
+docker compose exec -T db sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines --triggers gallery_db' > gallery-db-$(date +%F).sql
+
+# Sao lưu ảnh upload (đang mount từ host)
+cp -r app/public/uploads /backup/gallery-uploads-$(date +%F)
+
+# Khôi phục (chỉ khi đã dừng ghi dữ liệu)
+docker compose exec -T db sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" gallery_db' < gallery-db-2026-10-23.sql
+```
+
+- Khôi phục chỉ thực hiện trên cùng schema/phiên bản MySQL; nên sao lưu trước khi khôi phục.
 - Không đưa `.env`, uploads runtime, cert hoặc log vào Git.
 - `SESSION_SECRET` phải có ít nhất 32 ký tự và chỉ cung cấp qua biến môi trường.
 
 ## Hạn chế và hướng phát triển
 
-Hạn chế: chứng chỉ tự ký, MemoryStore session, metrics WSL2, trade-off với Docker socket access. Hướng phát triển: CA cert, Redis session store, alerting (Alertmanager), backup DB định kỳ.
+Hạn chế đã biết:
+
+- Chứng chỉ TLS tự ký, chỉ phù hợp môi trường học tập.
+- CSP còn `'unsafe-inline'` do template EJS dùng inline script và `onclick`.
+- `app_user` vẫn có `ALL PRIVILEGES` trên `gallery_db`; chưa thu hẹp quyền (cần phê duyệt).
+- Grafana/phpMyAdmin không thể áp dụng read-only filesystem hoặc drop toàn bộ capability (xem mục Bảo mật).
+- Promtail và cAdvisor cần đọc Docker socket, đây là trade-off đã biết.
+- Loki đang dùng TSDB nhưng chưa bật compactor retention; dữ liệu log cũ chưa bị xoá tự động theo `table_manager` (14 ngày) như cấu hình cũ.
+- Chưa có Alertmanager; cảnh báo mới ở mức dashboard.
+
+Hướng phát triển: CA cert nội bộ, thay `'unsafe-inline'` bằng nonce, thu hẹp quyền DB, Redis session store, Alertmanager, backup định kỳ và tự động hoá CI.
 
 
 ## Tác giả và tài liệu tham khảo

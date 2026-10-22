@@ -116,3 +116,37 @@ sum(count_over_time({container="nginx"}[5m]))
 - Ảnh minh họa được tạo trong seed, không lấy từ nguồn bên thứ ba; chúng không phải ảnh chụp. Mật khẩu demo lấy từ `.env`, nếu thiếu thì seed sinh và in mật khẩu ngẫu nhiên đúng một lần.
 - Seed chạy trong web container với quyền ghi vào thư mục upload dùng chung; nginx không còn mount thư mục upload để tránh khả năng phục vụ file tĩnh ngoài route kiểm tra quyền.
 - Kiểm tra sau `docker compose down -v` và `docker compose up -d --build`: seed tạo 3 user, 5 album, 25 ảnh và 25 thumbnail; share link cùng ảnh tải qua link trả HTTP 200, còn album private, ảnh private và URL trực tiếp `/uploads/...` trả HTTP 404.
+
+## Giai đoạn hoàn thiện 23-10-2026
+
+### Quyền riêng tư ảnh (L4)
+- `GET /photos/tags` trước đây chỉ lọc `photos.is_public`, bỏ qua `albums.is_public`, nên khách thấy tiêu đề và thumbnail của ảnh nằm trong album riêng tư (5 ảnh, id 66-70, album 14).
+- Đã sửa truy vấn tag và danh sách ảnh gần đây: ảnh chỉ hiển thị khi bản thân ảnh công khai **và** album chứa nó công khai, hoặc người xem là chủ sở hữu, hoặc là admin. Số đếm tag dùng `COUNT(p.id)` sau khi join nên tag chỉ còn ảnh riêng tư không còn xuất hiện với khách.
+- Thêm bộ test hồi quy `app/test/privacy.test.js` chạy bằng `node --test` trong container web (đọc DB và gọi HTTP thật, chỉ SELECT).
+
+### Đăng nhập, đăng xuất, thông báo lỗi (L11, L12)
+- Đăng xuất chuyển sang `POST /logout` có CSRF; `GET /logout` chỉ chuyển hướng về trang chủ. Cookie được xóa đúng tên `gallery.sid` (trước đây xóa `connect.sid`, không khớp cấu hình session).
+- Đăng ký kiểm tra định dạng username (3-50 ký tự, chữ/số/`.`/`_`/`-`) và email trước khi ghi DB.
+- Đăng nhập trả về một thông báo duy nhất "Email hoặc mật khẩu không đúng." cho email không tồn tại, tài khoản bị khóa và sai mật khẩu, tránh dò tài khoản.
+
+### Hardening (L8, L9, L10, L15, L16)
+- Express tắt `X-Powered-By`; Nginx thêm `proxy_hide_header X-Powered-By`.
+- CSP bổ sung `base-uri`, `form-action`, `frame-ancestors`, `object-src`; HSTS thêm `includeSubDomains`; thêm `Permissions-Policy`. `script-src`/`style-src` vẫn cần `'unsafe-inline'` vì các trang EJS hiện dùng inline script và thuộc tính `onclick` (ghi rõ trong README).
+- `/health` chỉ trả `{status}`; lỗi chi tiết ghi vào log phía server. Middleware admin trả trang 403 thay vì 404.
+- Mọi service dùng `json-file` với `max-size: 10m`, `max-file: 3` để chặn log phình to.
+- Promtail lưu `positions` trong volume `promtail_data` và bỏ qua log container cũ hơn 24 giờ, nên không còn lỗi `entry too far behind` sau mỗi lần restart.
+- phpMyAdmin không thể `cap_drop: ALL`/`read_only` vì entrypoint cần `chown` và Apache cần `setuid/setgid`; đã kiểm tra thực tế và ghi nhận đây là ngoại lệ hardening (service chỉ bind loopback).
+
+### Kiểm thử thực tế ngày 23-10-2026
+- `docker compose exec -T web node --test test/` → 7/7 test PASS (quyền riêng tư album, media private trả 404, ảnh công khai 200, share link hợp lệ/hết hiệu lực, 404 không lộ stack trace, `/health` không lộ lỗi, logout không có CSRF trả 403).
+- Kịch bản Playwright chạy trên giao diện thật (Edge headless) → 32/32 bước PASS: đăng ký, đăng nhập, tạo album private, upload, gắn tag, tìm kiếm, tạo link chia sẻ, khách mở link, thu hồi link (404), khách bị chặn album/ảnh/thumbnail private (404), user thường vào `/admin` nhận 403, admin vào `/admin` nhận 200, đăng xuất xóa phiên. Dữ liệu kiểm thử (user `e2e_*`, album, ảnh, file upload) đã được xóa; DB trở lại 3 user / 5 album / 25 ảnh / 73 file upload.
+- Header qua HTTPS: có `Content-Security-Policy`, `Strict-Transport-Security`, `Permissions-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`; không còn `X-Powered-By`.
+- Rate limit `/login` (5r/m, burst 5) trả 429 khi vượt ngưỡng; quan sát trong log Nginx khi chạy kiểm thử.
+- Prometheus: 6/6 target UP, `mysql_up=1`. Grafana: 2 datasource OK, 5 dashboard; dashboard Gallery Logs hiển thị log thật của container web.
+- LogQL 24 giờ gần nhất: `{container=~".+"}` = 17.388 dòng; `{container="web"} |= "HTTP request"` = 10.437 dòng; `{container="nginx"}` = 1.610 dòng; `{job="application"} | json | level="error"` = 0 dòng; `{container="web"} | json | status_code >= 500` = 3 dòng (đều là `/health` 503 khi DB được recreate, không phải lỗi ứng dụng).
+- Ảnh chụp thực tế của ứng dụng, phpMyAdmin, Prometheus và Grafana lưu tại `docs/screenshots/`.
+
+### Tồn đọng có kiểm soát
+- Quyền DB runtime của `app_user` vẫn là `ALL PRIVILEGES` trên `gallery_db` (script khởi tạo chỉ định SELECT/INSERT/UPDATE/DELETE). Chưa thu hẹp vì cần phê duyệt thao tác trên DB đang chạy.
+- Mật khẩu MySQL/Grafana hiện tại chưa được đổi sang mật khẩu mạnh hơn (cần phê duyệt, không làm mất dữ liệu).
+
