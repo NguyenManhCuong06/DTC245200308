@@ -1,5 +1,11 @@
 name: gallery
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   web:
     image: gallery-web:3.0.0
@@ -7,6 +13,7 @@ services:
       context: ./app
       dockerfile: Dockerfile
     container_name: web
+    logging: *default-logging
     restart: unless-stopped
     environment:
       DB_HOST: db
@@ -48,6 +55,7 @@ services:
   db:
     image: mysql:8.0.46
     container_name: db
+    logging: *default-logging
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
@@ -76,6 +84,7 @@ services:
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:5.2.3
     container_name: phpmyadmin
+    logging: *default-logging
     restart: unless-stopped
     ports:
       - "127.0.0.1:8080:80"
@@ -98,6 +107,10 @@ services:
       start_period: 20s
     security_opt:
       - no-new-privileges:true
+    # phpMyAdmin's entrypoint must chown its config and Apache drops privileges
+    # with setuid/setgid, so capabilities cannot be dropped here (they are
+    # required for the image to start). The service is published on loopback
+    # only and is documented as a known hardening exception.
     mem_limit: 256m
     cpus: "0.3"
 
@@ -107,6 +120,7 @@ services:
       context: ./nginx
       dockerfile: Dockerfile
     container_name: nginx
+    logging: *default-logging
     restart: unless-stopped
     ports:
       - "80:8080"
@@ -140,6 +154,7 @@ services:
   prometheus:
     image: prom/prometheus:v3.15.0
     container_name: prometheus
+    logging: *default-logging
     restart: unless-stopped
     ports:
       - "127.0.0.1:9090:9090"
@@ -173,6 +188,7 @@ services:
   grafana:
     image: grafana/grafana-enterprise:13.2.3
     container_name: grafana
+    logging: *default-logging
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"
@@ -214,6 +230,7 @@ services:
       args:
         BASE_IMAGE: grafana/loki:3.7.8
     container_name: loki
+    logging: *default-logging
     restart: unless-stopped
     ports:
       - "127.0.0.1:3100:3100"
@@ -247,12 +264,14 @@ services:
       args:
         BASE_IMAGE: grafana/promtail:3.6.8
     container_name: promtail
+    logging: *default-logging
     restart: unless-stopped
     user: "0:0"
     volumes:
       - ./promtail/promtail-config.yml:/etc/promtail/config.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./app/src/logs:/app/src/logs:ro
+      - promtail_data:/var/lib/promtail
     command: -config.file=/etc/promtail/config.yml
     networks:
       - monitoring
@@ -278,6 +297,7 @@ services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.55.1
     container_name: cadvisor
+    logging: *default-logging
     restart: unless-stopped
     volumes:
       - /:/rootfs:ro
@@ -302,6 +322,7 @@ services:
   node-exporter:
     image: prom/node-exporter:v1.12.1
     container_name: node-exporter
+    logging: *default-logging
     restart: unless-stopped
     ports:
       - "127.0.0.1:9100:9100"
@@ -332,6 +353,7 @@ services:
   mysqld-exporter:
     image: prom/mysqld-exporter:v0.20.0
     container_name: mysqld-exporter
+    logging: *default-logging
     restart: unless-stopped
     ports:
       - "127.0.0.1:9104:9104"
@@ -374,6 +396,7 @@ services:
       args:
         BASE_IMAGE: nginx/nginx-prometheus-exporter:1.4.2
     container_name: nginx-prometheus-exporter
+    logging: *default-logging
     restart: unless-stopped
     command:
       - "--nginx.scrape-uri=http://nginx:8081/stub_status"
@@ -416,3 +439,4 @@ volumes:
   prometheus_data:
   loki_data:
   nginx_certs:
+  promtail_data:
