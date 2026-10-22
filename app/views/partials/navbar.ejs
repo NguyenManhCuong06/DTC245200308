@@ -54,7 +54,12 @@
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><span class="dropdown-item-text text-muted small"><%= user.email %></span></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="/logout">Đăng xuất</a></li>
+                            <li>
+                                <form method="POST" action="/logout" class="m-0">
+                                    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                                    <button type="submit" class="dropdown-item text-danger">Đăng xuất</button>
+                                </form>
+                            </li>
                         </ul>
                     </li>
                 <% } else { %>

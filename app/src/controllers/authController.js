@@ -36,7 +36,19 @@ const authController = {
   },
 
   register: (req, res) => {
-    const { username, email, password, confirm_password } = req.body;
+    const username = typeof req.body.username === 'string' ? req.body.username.trim() : '';
+    const email = typeof req.body.email === 'string' ? req.body.email.trim() : '';
+    const { password, confirm_password } = req.body;
+
+    if (!/^[A-Za-z0-9_.-]{3,50}$/.test(username)) {
+      req.flash('error', 'Tên đăng nhập phải dài 3-50 ký tự, chỉ gồm chữ, số, dấu chấm, gạch dưới hoặc gạch ngang');
+      return res.redirect('/register');
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(email) || email.length > 100) {
+      req.flash('error', 'Email không hợp lệ');
+      return res.redirect('/register');
+    }
 
     if (password !== confirm_password) {
       req.flash('error', 'Passwords do not match');
@@ -80,7 +92,7 @@ const authController = {
         return next(err);
       }
       req.session.destroy(() => {
-        res.clearCookie('connect.sid');
+        res.clearCookie('gallery.sid');
         res.redirect('/');
       });
     });
@@ -183,13 +195,16 @@ passport.use(new LocalStrategy({
 }, (email, password, done) => {
   db.query('SELECT * FROM users WHERE email = ?', [email], (err, results) => {
     if (err) return done(err);
-    if (results.length === 0) return done(null, false, { message: 'Incorrect email.' });
+    // Same message for unknown email, locked account and wrong password so the
+    // login form cannot be used to enumerate accounts.
+    const genericFailure = { message: 'Email hoặc mật khẩu không đúng.' };
+    if (results.length === 0) return done(null, false, genericFailure);
     
     const user = results[0];
-    if (user.is_locked) return done(null, false, { message: 'This account is locked.' });
+    if (user.is_locked) return done(null, false, genericFailure);
     const isValid = bcrypt.compareSync(password, user.password);
     
-    if (!isValid) return done(null, false, { message: 'Incorrect password.' });
+    if (!isValid) return done(null, false, genericFailure);
     
     return done(null, user);
   });

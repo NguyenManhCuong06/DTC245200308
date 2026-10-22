@@ -4,7 +4,7 @@
     <%- include('../partials/head', { title: 'Lỗi - ' + status }) %>
 </head>
 <body class="d-flex flex-column min-vh-100">
-    <%- include('../partials/navbar', { user: typeof user !== 'undefined' ? user : null }) %>
+    <%- include('../partials/navbar', { user: typeof user !== 'undefined' ? user : null, csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : null }) %>
 
     <main class="container my-auto py-5 d-flex align-items-center justify-content-center">
         <div class="card shadow-lg auth-card text-center p-5">

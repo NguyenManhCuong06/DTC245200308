@@ -4,7 +4,7 @@
     <%- include('../partials/head', { title: 'Đăng nhập Studio' }) %>
 </head>
 <body class="d-flex flex-column min-vh-100">
-    <%- include('../partials/navbar', { user: null }) %>
+    <%- include('../partials/navbar', { user: null, csrfToken }) %>
 
     <main class="container my-auto py-5 d-flex align-items-center justify-content-center">
         <div class="card shadow-lg auth-card p-4">
