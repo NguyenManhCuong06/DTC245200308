@@ -88,6 +88,53 @@ test('guest tag overview does not expose photos that belong to a private album',
   assert.ok(visiblePublicPhoto, 'the tag overview must still list public photos');
 });
 
+test('guest home does not expose photos from private albums', async (t) => {
+  const fixture = await withConnection(async (connection) => {
+    const [privatePhotos] = await connection.execute(`
+      SELECT p.id
+      FROM photos p
+      JOIN albums a ON a.id = p.album_id
+      WHERE a.is_public = 0 AND p.is_public = 1
+      LIMIT 10
+    `);
+    const [visiblePhotos] = await connection.execute(`
+      SELECT p.id
+      FROM photos p
+      LEFT JOIN albums a ON a.id = p.album_id
+      WHERE p.is_public = 1 AND (a.id IS NULL OR a.is_public = 1)
+      ORDER BY p.created_at DESC
+      LIMIT 6
+    `);
+    return { privatePhotos, visiblePhotos };
+  });
+
+  if (fixture.privatePhotos.length === 0) {
+    t.skip('Seed data has no public photo inside a private album');
+    return;
+  }
+
+  const { status, body } = await get('/');
+  assert.equal(status, 200, 'guest home must render');
+
+  for (const photo of fixture.privatePhotos) {
+    assert.ok(
+      !body.includes(`/photos/${photo.id}/thumbnail`),
+      `private-album photo ${photo.id} must not be rendered on the guest home page`
+    );
+    assert.ok(
+      !body.includes(`/photos/${photo.id}/original`),
+      `private-album photo ${photo.id} original link must not be rendered`
+    );
+  }
+
+  if (fixture.visiblePhotos.length > 0) {
+    assert.ok(
+      fixture.visiblePhotos.some((photo) => body.includes(`/photos/${photo.id}/thumbnail`)),
+      'guest home must still list public photos'
+    );
+  }
+});
+
 test('private album and its photos stay hidden from guests', async (t) => {
   const fixture = await withConnection(async (connection) => {
     const [albums] = await connection.execute(

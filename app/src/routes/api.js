@@ -37,7 +37,10 @@ router.get('/albums', (req, res) => {
   
   const userId = req.user ? req.user.id : -1;
   db.query(query, [userId, userId, req.user ? req.user.role : '', 'admin'], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('Unable to list albums via API:', err.message);
+      return res.status(500).json({ error: 'Unable to load albums' });
+    }
     res.json(results);
   });
 });
@@ -54,7 +57,10 @@ router.get('/photos', (req, res) => {
   `;
   
   db.query(query, [req.user ? req.user.id : -1, req.user ? req.user.role : '', 'admin'], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('Unable to list photos via API:', err.message);
+      return res.status(500).json({ error: 'Unable to load photos' });
+    }
     results.forEach(photo => {
       photo.thumbnail_url = `/photos/${photo.id}/thumbnail`;
       photo.url = `/photos/${photo.id}/original`;

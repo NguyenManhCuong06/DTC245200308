@@ -102,6 +102,9 @@ const authController = {
     try {
       const isAuth = !!req.user;
       const userId = isAuth ? req.user.id : -1;
+      // Guests may only see public photos that are not inside a private album.
+      const guestPhotoVisibility = 'p.is_public = TRUE AND (a.id IS NULL OR a.is_public = TRUE)';
+      const guestTagVisibility = 'p2.is_public = TRUE AND (a2.id IS NULL OR a2.is_public = TRUE)';
 
       // Stats calculation
       const [[statsResult]] = await db.promise().query(
@@ -114,8 +117,14 @@ const authController = {
           : `SELECT 
                COUNT(p.id) as photoCount,
                (SELECT COUNT(*) FROM albums WHERE is_public = TRUE) as albumCount,
-               (SELECT COUNT(*) FROM tags) as tagCount
-             FROM photos p WHERE p.is_public = TRUE`,
+               (SELECT COUNT(DISTINCT pt.tag_id)
+                FROM photo_tags pt
+                JOIN photos p2 ON p2.id = pt.photo_id
+                LEFT JOIN albums a2 ON a2.id = p2.album_id
+                WHERE ${guestTagVisibility}) as tagCount
+             FROM photos p
+             LEFT JOIN albums a ON a.id = p.album_id
+             WHERE ${guestPhotoVisibility}`,
         isAuth ? [userId, userId, userId] : []
       );
 
@@ -125,7 +134,7 @@ const authController = {
          FROM photos p
          JOIN users u ON u.id = p.user_id
          LEFT JOIN albums a ON a.id = p.album_id
-         WHERE ${isAuth ? 'p.user_id = ?' : 'p.is_public = TRUE'}
+         WHERE ${isAuth ? 'p.user_id = ?' : guestPhotoVisibility}
          ORDER BY p.created_at DESC
          LIMIT 6`,
         isAuth ? [userId] : []
