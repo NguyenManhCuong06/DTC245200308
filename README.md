@@ -26,6 +26,7 @@
 - [Minh chứng hình ảnh](#minh-chứng-hình-ảnh)
 - [Xử lý sự cố](#xử-lý-sự-cố)
 - [Git workflow và đóng góp](#git-workflow-và-đóng-góp)
+- [Backup và khôi phục](#backup-và-khôi-phục)
 - [Hạn chế và hướng phát triển](#hạn-chế-và-hướng-phát-triển)
 - [Tác giả và tài liệu tham khảo](#tác-giả-và-tài-liệu-tham-khảo)
 
@@ -41,6 +42,7 @@ Hệ thống Thư viện Ảnh / Gallery là ứng dụng web quản lý album �
 - Xem chi tiết ảnh và slideshow
 - Gán tag, chia sẻ album có thời hạn
 - Trang quản trị
+
 ## Kiến trúc hệ thống
 
 ```mermaid
@@ -60,6 +62,7 @@ flowchart TD
   Grafana --> Loki
   phpMyAdmin[phpMyAdmin] --> DB
 ```
+
 ## Công nghệ sử dụng
 
 | Công nghệ | Phiên bản | Vai trò |
@@ -105,15 +108,51 @@ docker compose ps
 docker compose exec -T web node /app/db/init-scripts/seed-demo.js  # tùy chọn
 ```
 
+### Cấu hình `.env`
+
+Sao chép `.env.example` thành `.env` và thay **toàn bộ** placeholder bằng giá trị mạnh; không dùng giá trị mẫu và không commit `.env`.
+
+| Biến | Bắt buộc | Dùng cho |
+|---|---|---|
+| `MYSQL_ROOT_PASSWORD` | Có | Mật khẩu `root` của MySQL; chỉ dùng nội bộ container |
+| `MYSQL_DATABASE` | Có | Tên database ứng dụng, mặc định `gallery_db` |
+| `MYSQL_USER` | Có | User ứng dụng, mặc định `app_user` |
+| `MYSQL_PASSWORD` | Có | Mật khẩu user ứng dụng; web và phpMyAdmin dùng giá trị này |
+| `MYSQL_EXPORTER_PASSWORD` | Có | Mật khẩu user `gallery_exporter` cho monitoring |
+| `GRAFANA_ADMIN_PASSWORD` | Có | Mật khẩu tài khoản `admin` của Grafana |
+| `SESSION_SECRET` | Có | Khóa ký session; tối thiểu 32 ký tự |
+| `DEMO_ADMIN_PASSWORD` | Không | Mật khẩu admin demo khi chạy `seed-demo.js` |
+| `DEMO_USER_PASSWORD` | Không | Mật khẩu user demo khi chạy `seed-demo.js` |
+
+`NODE_ENV=production` và các biến `DB_HOST`/`DB_USER`/`DB_PASSWORD`/`DB_NAME`/`UPLOAD_DIR` được Compose cấu hình nội bộ; không cần khai báo lại trong `.env`.
+
+### Dừng và khởi động lại an toàn
+
+```bash
+# Dừng toàn bộ service nhưng giữ container, network và volume
+docker compose stop
+
+# Khởi động lại sau khi đã dừng
+docker compose up -d
+
+# Chỉ khởi động lại web
+docker compose restart web
+```
+
+Không dùng `docker compose down -v`: tùy chọn `-v` xóa named volume, có thể làm mất dữ liệu MySQL. Chỉ dùng `docker compose down` (không có `-v`) khi thật sự cần bỏ container/network, và luôn backup trước khi bảo trì dữ liệu.
+
 ## Truy cập dịch vụ
 
 | Dịch vụ | URL | Ghi chú |
 |---|---|---|
 | Gallery | https://localhost | Qua Nginx HTTPS (self-signed) |
 | phpMyAdmin | http://127.0.0.1:8080 | Chỉ localhost |
-| Grafana | http://127.0.0.1:3000 | admin / GRAFANA_ADMIN_PASSWORD |
+| Grafana | http://127.0.0.1:3000 | admin / `GRAFANA_ADMIN_PASSWORD` (áp dụng khi volume Grafana được tạo lần đầu; volume hiện có dùng mật khẩu hiện hành) |
 | Prometheus | http://127.0.0.1:9090 | Chỉ localhost |
 | Loki API | http://127.0.0.1:3100 | Chỉ localhost |
+| Node exporter | http://127.0.0.1:9100/metrics | Chỉ localhost; Prometheus scrape nội bộ |
+| MySQL exporter | http://127.0.0.1:9104/metrics | Chỉ localhost; Prometheus scrape nội bộ |
+| Nginx exporter | http://127.0.0.1:9113/metrics | Chỉ localhost; Prometheus scrape nội bộ |
 
 ## Monitoring và Logging
 
@@ -145,17 +184,18 @@ docker compose exec -T web node /app/db/init-scripts/seed-demo.js  # tùy chọn
 Đã áp dụng và kiểm chứng ngày 23-10-2026:
 
 - Session lưu trong MySQL (bảng `sessions`), cookie tên `gallery.sid`, `HttpOnly` + `SameSite=Strict` + `Secure` khi `NODE_ENV=production`; mọi thao tác thay đổi dữ liệu đều qua POST có CSRF.
+- Ảnh thuộc album private không xuất hiện trên guest home hoặc API công khai; route media/thumbnail kiểm tra quyền và trả `404` cho guest. Lỗi DB qua API được trả thông báo chung, không lộ chi tiết driver.
 - Nginx: CSP, HSTS `includeSubDomains`, `Permissions-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`; ẩn `X-Powered-By`; rate limit `/login`, `/register` (5 request/phút, burst 5) và API (10 request/giây).
 - Container: web/nginx/loki/prometheus/promtail chạy read-only + tmpfs, `cap_drop: ALL`, `no-new-privileges`; chỉ Nginx publish 80/443, các cổng còn lại bind `127.0.0.1`, MySQL không publish ra host.
 - Log Docker xoay vòng `10m` × `3` file cho từng service.
 - `.env` không được Git theo dõi; `.env.example` chỉ chứa giá trị mẫu.
+- Quyền DB runtime của `app_user` đã thu hẹp còn `SELECT, INSERT, UPDATE, DELETE` trên `gallery_db` (không có DDL/GRANT); `gallery_exporter` có quyền monitoring riêng. Startup chỉ probe đọc.
 
 Ngoại lệ đã kiểm tra thực tế (không ép cấu hình làm hỏng dịch vụ):
 
 - phpMyAdmin cần `chown` lúc entrypoint và Apache cần `setuid/setgid`, nên không thể `cap_drop: ALL`/`read_only`; bù lại service chỉ bind loopback và bật `no-new-privileges`.
-- Grafana cần filesystem ghi được cho plugin updater; vẫn giữ `cap_drop` và `no-new-privileges`.
+- Grafana cần filesystem ghi được cho plugin updater nên không đặt `read_only`; vẫn giữ `cap_drop: ALL` và `no-new-privileges`.
 - CSP còn `'unsafe-inline'` cho `script-src`/`style-src` vì template EJS dùng inline script và thuộc tính `onclick`.
-- Quyền DB runtime của `app_user` hiện vẫn là `ALL PRIVILEGES` trên `gallery_db` (script khởi tạo chỉ định SELECT/INSERT/UPDATE/DELETE). Chưa thu hẹp vì cần phê duyệt thao tác trên DB đang chạy.
 
 ## Kiểm thử và xác minh
 
@@ -170,9 +210,9 @@ docker compose ps
 docker compose exec -T web node --test test/
 
 # 4. Header bảo mật qua HTTPS
-curl -k -sS -D - -o NUL https://localhost/ | grep -Ei 'content-security|strict-transport|permissions-policy|x-powered-by'
+curl -k -sS -D - -o /dev/null https://localhost/ | grep -Ei 'content-security|strict-transport|permissions-policy|x-powered-by'
 
-# 5. Rate limit đăng nhập (request thứ 6 trở đi trả 429)
+# 5. Rate limit đăng nhập (6 request đầu được phép; request thứ 7 trả 429)
 for i in $(seq 1 7); do curl -k -s -o /dev/null -w "%{http_code}\n" https://localhost/login; done
 
 # 6. Prometheus / Grafana
@@ -186,7 +226,7 @@ Kết quả thực tế ngày 23-10-2026:
 |---|---|
 | `docker compose config --quiet` | exit 0 |
 | `docker compose ps` | 12/12 service `healthy` |
-| `node --test test/` trong container web | 7/7 PASS |
+| `node --test test/` trong container web | 8/8 PASS |
 | Kịch bản Playwright trên UI thật | 32/32 bước PASS (đăng ký, đăng nhập, album, upload, tag, tìm kiếm, chia sẻ/thu hồi, 403, 404, đăng xuất) |
 | Header HTTPS | Có CSP/HSTS/Permissions-Policy; không có `X-Powered-By` |
 | Rate limit `/login` | Trả 429 khi vượt ngưỡng (5r/m, burst 5) |
@@ -226,7 +266,9 @@ Kết quả thực tế ngày 23-10-2026:
 
 ```bash
 git checkout -b feature/ten-tinh-nang
-git add .
+git add -- app/src app/test README.md
+git status --short
+git diff --cached
 git commit -m "feat: mo ta thay doi"
 git push origin feature/ten-tinh-nang
 ```
@@ -254,13 +296,13 @@ Hạn chế đã biết:
 
 - Chứng chỉ TLS tự ký, chỉ phù hợp môi trường học tập.
 - CSP còn `'unsafe-inline'` do template EJS dùng inline script và `onclick`.
-- `app_user` vẫn có `ALL PRIVILEGES` trên `gallery_db`; chưa thu hẹp quyền (cần phê duyệt).
-- Grafana/phpMyAdmin không thể áp dụng read-only filesystem hoặc drop toàn bộ capability (xem mục Bảo mật).
+- Upload chưa có rate limit riêng; hiện chỉ giới hạn kích thước và số file.
+- Grafana cần filesystem ghi nên không read-only; phpMyAdmin cần `chown`/`setuid` nên không read-only hoặc `cap_drop: ALL` (xem mục Bảo mật).
 - Promtail và cAdvisor cần đọc Docker socket, đây là trade-off đã biết.
 - Loki đang dùng TSDB nhưng chưa bật compactor retention; dữ liệu log cũ chưa bị xoá tự động theo `table_manager` (14 ngày) như cấu hình cũ.
 - Chưa có Alertmanager; cảnh báo mới ở mức dashboard.
 
-Hướng phát triển: CA cert nội bộ, thay `'unsafe-inline'` bằng nonce, thu hẹp quyền DB, Redis session store, Alertmanager, backup định kỳ và tự động hoá CI.
+Hướng phát triển: CA cert nội bộ, thay `'unsafe-inline'` bằng nonce, rate limit cho upload, Redis session store, Alertmanager, backup định kỳ và tự động hoá CI.
 
 
 ## Tác giả và tài liệu tham khảo
