@@ -138,7 +138,7 @@ sum(count_over_time({container="nginx"}[5m]))
 - phpMyAdmin không thể `cap_drop: ALL`/`read_only` vì entrypoint cần `chown` và Apache cần `setuid/setgid`; đã kiểm tra thực tế và ghi nhận đây là ngoại lệ hardening (service chỉ bind loopback).
 
 ### Kiểm thử thực tế ngày 23-10-2026
-- `docker compose exec -T web node --test test/` → 7/7 test PASS (quyền riêng tư album, media private trả 404, ảnh công khai 200, share link hợp lệ/hết hiệu lực, 404 không lộ stack trace, `/health` không lộ lỗi, logout không có CSRF trả 403).
+- `docker compose exec -T web node --test test/` → 8/8 test PASS (quyền riêng tư album, media private trả 404, ảnh công khai 200, share link hợp lệ/hết hiệu lực, 404 không lộ stack trace, `/health` không lộ lỗi, logout không có CSRF trả 403).
 - Kịch bản Playwright chạy trên giao diện thật (Edge headless) → 32/32 bước PASS: đăng ký, đăng nhập, tạo album private, upload, gắn tag, tìm kiếm, tạo link chia sẻ, khách mở link, thu hồi link (404), khách bị chặn album/ảnh/thumbnail private (404), user thường vào `/admin` nhận 403, admin vào `/admin` nhận 200, đăng xuất xóa phiên. Dữ liệu kiểm thử (user `e2e_*`, album, ảnh, file upload) đã được xóa; DB trở lại 3 user / 5 album / 25 ảnh / 73 file upload.
 - Header qua HTTPS: có `Content-Security-Policy`, `Strict-Transport-Security`, `Permissions-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`; không còn `X-Powered-By`.
 - Rate limit `/login` (5r/m, burst 5) trả 429 khi vượt ngưỡng; quan sát trong log Nginx khi chạy kiểm thử.
@@ -146,7 +146,6 @@ sum(count_over_time({container="nginx"}[5m]))
 - LogQL 24 giờ gần nhất: `{container=~".+"}` = 17.388 dòng; `{container="web"} |= "HTTP request"` = 10.437 dòng; `{container="nginx"}` = 1.610 dòng; `{job="application"} | json | level="error"` = 0 dòng; `{container="web"} | json | status_code >= 500` = 3 dòng (đều là `/health` 503 khi DB được recreate, không phải lỗi ứng dụng).
 - Ảnh chụp thực tế của ứng dụng, phpMyAdmin, Prometheus và Grafana lưu tại `docs/screenshots/`.
 
-### Tồn đọng có kiểm soát
-- Quyền DB runtime của `app_user` vẫn là `ALL PRIVILEGES` trên `gallery_db` (script khởi tạo chỉ định SELECT/INSERT/UPDATE/DELETE). Chưa thu hẹp vì cần phê duyệt thao tác trên DB đang chạy.
+### Trạng thái quyền DB và tồn đọng
+- Quyền DB runtime của `app_user` hiện là `SELECT`, `INSERT`, `UPDATE`, `DELETE` trên `gallery_db` (không có DDL/GRANT). `gallery_exporter` có `SELECT`, `PROCESS`, `REPLICATION CLIENT` trên `*.*` cho monitoring; startup chỉ probe đọc.
 - Mật khẩu MySQL/Grafana hiện tại chưa được đổi sang mật khẩu mạnh hơn (cần phê duyệt, không làm mất dữ liệu).
-
