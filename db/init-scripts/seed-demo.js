@@ -120,12 +120,36 @@ async function ensureThumbnailsExist() {
   }
 }
 
+async function assertSafeToReset(connection) {
+  const [[counts]] = await connection.execute(`
+    SELECT
+      (SELECT COUNT(*) FROM users) AS users,
+      (SELECT COUNT(*) FROM albums) AS albums,
+      (SELECT COUNT(*) FROM photos) AS photos,
+      (SELECT COUNT(*) FROM tags) AS tags,
+      (SELECT COUNT(*) FROM share_links) AS share_links
+  `);
+  const total = Number(counts.users) + Number(counts.albums) + Number(counts.photos)
+    + Number(counts.tags) + Number(counts.share_links);
+
+  // The script intentionally deletes all gallery content. Refuse to run against
+  // a populated database unless the operator explicitly opts in.
+  if (total > 0 && process.env.SEED_ALLOW_DESTRUCTIVE !== 'true') {
+    throw new Error(
+      `Refusing to reset a populated database (users=${counts.users}, albums=${counts.albums}, `
+      + `photos=${counts.photos}, tags=${counts.tags}, share_links=${counts.share_links}). `
+      + 'Set SEED_ALLOW_DESTRUCTIVE=true only when you intend to delete this data.'
+    );
+  }
+}
+
 async function seedDatabase() {
   let connection;
   try {
     console.log('Connecting to database...');
     connection = await mysql.createConnection(DB_CONFIG);
     console.log('Connected to database');
+    await assertSafeToReset(connection);
 
     // Reset seed data while retaining the app user's database permissions.
     console.log('Clearing existing data...');

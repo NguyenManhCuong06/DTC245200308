@@ -82,7 +82,7 @@ docker compose ps
 docker compose logs -f --tail=100 web nginx
 ```
 
-Seed dữ liệu demo (3 user, 5 album, 25 ảnh, tag, link chia sẻ):
+Seed dữ liệu demo (3 user, 5 album, 25 ảnh, tag, link chia sẻ). Chỉ chạy khi database còn trống; script sẽ từ chối xóa dữ liệu đang có nếu chưa đặt `SEED_ALLOW_DESTRUCTIVE=true`:
 
 ```bash
 docker compose exec -T web node /app/db/init-scripts/seed-demo.js
@@ -198,19 +198,20 @@ Kết quả mong đợi: 12/12 service healthy; `/health` trả `{"status":"heal
 docker compose exec -T web node --test test/
 ```
 
-Bộ test gồm 7 ca:
+Bộ test gồm 8 ca:
 
 1. Khách không thấy ảnh thuộc album riêng tư trên `/photos/tags`.
-2. Album/ảnh/thumbnail riêng tư trả 404 cho khách.
-3. Ảnh công khai vẫn xem được (chi tiết + thumbnail 200).
-4. Link chia sẻ hợp lệ phục vụ ảnh; token sai trả 404.
-5. Route không tồn tại trả 404, không lộ stack trace.
-6. `/health` không chứa trường `error`.
-7. `GET /logout` không hủy phiên; `POST /logout` thiếu CSRF trả 403.
+2. Khách không thấy ảnh thuộc album riêng tư trên trang chủ.
+3. Album/ảnh/thumbnail riêng tư trả 404 cho khách.
+4. Ảnh công khai vẫn xem được (chi tiết + thumbnail 200).
+5. Link chia sẻ hợp lệ phục vụ ảnh; token sai trả 404.
+6. Route không tồn tại trả 404, không lộ stack trace.
+7. `/health` không chứa trường `error`.
+8. `GET /logout` không hủy phiên; `POST /logout` thiếu CSRF trả 403.
 
-Kết quả thực tế: **7/7 PASS**.
+Kết quả thực tế: **8/8 PASS** (chạy lại ngày 23-10-2026).
 
-Ngoài ra kịch bản Playwright chạy trên giao diện thật đã kiểm tra 32 bước (đăng ký, đăng nhập, album, upload, tag, tìm kiếm, chia sẻ/thu hồi, 403, 404, đăng xuất) — **32/32 PASS**; dữ liệu kiểm thử được xóa sau khi chạy.
+Ngoài ra, trong đợt kiểm thử giao diện trước đó, kịch bản Playwright đã kiểm tra 32 bước (đăng ký, đăng nhập, album, upload, tag, tìm kiếm, chia sẻ/thu hồi, 403, 404, đăng xuất) — **32/32 PASS**; dữ liệu kiểm thử được xóa sau khi chạy. Đây là số liệu lịch sử, chưa chạy lại trong phiên 23-10-2026.
 
 ## 10. Sao lưu và khôi phục
 
@@ -245,6 +246,6 @@ Khuyến nghị: sao lưu trước mọi thay đổi quyền DB hoặc nâng c�
 
 - Chứng chỉ tự ký, không phù hợp production.
 - CSP còn `'unsafe-inline'` do inline script/`onclick` trong template.
-- `app_user` hiện có `ALL PRIVILEGES` trên `gallery_db`; cần phê duyệt trước khi thu hẹp.
+- `app_user` runtime chỉ có `SELECT, INSERT, UPDATE, DELETE` trên `gallery_db`; `gallery_exporter` có `SELECT, PROCESS, REPLICATION CLIENT` cho monitoring.
 - phpMyAdmin không thể read-only/drop toàn bộ capability (yêu cầu của image).
 - Chưa có Alertmanager; Loki chưa bật compactor retention.

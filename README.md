@@ -105,7 +105,9 @@ cp .env.example .env
 # Cấu hình biến môi trường trong .env
 docker compose up -d --build
 docker compose ps
-docker compose exec -T web node /app/db/init-scripts/seed-demo.js  # tùy chọn
+# Tùy chọn: chỉ seed khi database còn trống. Script từ chối xóa dữ liệu đang có
+# trừ khi đặt SEED_ALLOW_DESTRUCTIVE=true một cách có chủ đích.
+docker compose exec -T web node /app/db/init-scripts/seed-demo.js
 ```
 
 ### Cấu hình `.env`
@@ -227,7 +229,7 @@ Kết quả thực tế ngày 23-10-2026:
 | `docker compose config --quiet` | exit 0 |
 | `docker compose ps` | 12/12 service `healthy` |
 | `node --test test/` trong container web | 8/8 PASS |
-| Kịch bản Playwright trên UI thật | 32/32 bước PASS (đăng ký, đăng nhập, album, upload, tag, tìm kiếm, chia sẻ/thu hồi, 403, 404, đăng xuất) |
+| Kịch bản Playwright trên UI thật | 32/32 bước PASS trong đợt kiểm thử giao diện trước; chưa chạy lại trong phiên 23-10-2026 |
 | Header HTTPS | Có CSP/HSTS/Permissions-Policy; không có `X-Powered-By` |
 | Rate limit `/login` | Trả 429 khi vượt ngưỡng (5r/m, burst 5) |
 | Prometheus | 6/6 target UP, `mysql_up=1` |

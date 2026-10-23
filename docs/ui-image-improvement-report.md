@@ -75,8 +75,8 @@ Dự án chỉ có 25 file SVG giả lập, thiếu hoàn toàn ảnh chụp th�
 | Chức năng | Kết quả | Ghi chú |
 |-----------|---------|---------|
 | **Đăng ký tài khoản mới** | ✅ Pass | Password strength meter real-time, bcrypt hash |
-| **Đăng nhập Admin** | ✅ Pass | `admin@gallery.demo` / `admin123` (từ .env) |
-| **Đăng nhập User** | ✅ Pass | `user1@gallery.demo` / `user123` |
+| **Đăng nhập Admin** | ✅ Pass | `admin@gallery.demo`; mật khẩu chỉ lấy từ `.env`, không ghi vào repo |
+| **Đăng nhập User** | ✅ Pass | `user1@gallery.demo`; mật khẩu chỉ lấy từ `.env`, không ghi vào repo |
 | **Xem trang chủ (Guest/User)** | ✅ Pass | Hiển thị ảnh thật, không lặp, không broken |
 | **Duyệt thư viện ảnh** | ✅ Pass | Tìm kiếm, lọc tag, pagination 12/trang |
 | **Xem chi tiết ảnh** | ✅ Pass | Ảnh gốc load đầy đủ, EXIF, tag, download |
